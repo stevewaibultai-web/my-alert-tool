@@ -2,232 +2,115 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Alert Tool</title>
+    <title>USD(s)-M Futures Alert Tool</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #0b111e;
-            color: #ffffff;
-            margin: 0;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .container {
-            width: 100%;
-            max-width: 480px;
-            background: #121b2d;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            box-sizing: border-box;
-        }
-        h3 {
-            margin-top: 0;
-            margin-bottom: 12px;
-            font-size: 16px;
-            text-align: center;
-            color: #38bdf8;
-            border-bottom: 1px solid #1e293b;
-            padding-bottom: 8px;
-        }
-        .config-section {
-            background: #1e293b;
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-        }
-        .config-row {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 8px;
-        }
-        .config-row:last-child {
-            margin-bottom: 0;
-        }
-        input, select {
-            background: #0f172a;
-            color: #fff;
-            border: 1px solid #334155;
-            border-radius: 4px;
-            padding: 6px;
-            font-size: 13px;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        button {
-            background: #0284c7;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: bold;
-        }
-        button:hover {
-            background: #0369a1;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-        th {
-            background: #1e293b;
-            color: #94a3b8;
-            font-weight: 500;
-            padding: 8px;
-            text-align: left;
-        }
-        td {
-            padding: 10px 8px;
-            border-bottom: 1px solid #1e293b;
-        }
-        .price-up {
-            color: #4ade80;
-            font-weight: bold;
-            text-align: right;
-        }
-        .source-text {
-            font-size: 11px;
-            color: #94a3b8;
-            margin-top: 2px;
-        }
+        body { font-family: sans-serif; background: #121212; color: #fff; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #333; padding: 12px; text-align: left; }
+        th { background: #1e1e1e; }
+        input, select { background: #222; color: #fff; border: 1px solid #444; padding: 6px; width: 90%; }
+        .config-box { background: #1e1e1e; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h3>Telegram Alert Configuration</h3>
-    <div class="config-section">
-        <div class="config-row">
-            <input type="text" id="botToken" placeholder="Bot Token (e.g. 123456:ABC...)">
-            <input type="text" id="chatId" placeholder="Chat ID (e.g. 9876543)">
-        </div>
-        <div style="text-align: right; margin-top: 5px;">
-            <button onclick="testTelegram()">Test Connection</button>
-        </div>
+    <!-- 🤖 TELEGRAM SETUP -->
+    <div class="config-box">
+        <h3>Telegram Alert Config (100% Free)</h3>
+        <input type="text" id="botToken" placeholder="Enter Bot Token" style="width: 40%;">
+        <input type="text" id="chatId" placeholder="Enter Chat ID" style="width: 40%;">
+        <button onclick="testTelegram()">Test Alert</button>
     </div>
 
-    <h3>Price Table</h3>
-    <table id="alertTable">
+    <!-- 📊 MINIMAL TRADING TABLE -->
+    <h3>USD(s)-M Futures Custom Alert Table</h3>
+    <table>
         <thead>
             <tr>
-                <th>Symbol</th>
+                <th>Symbol (Type exact future name, e.g., BTCUSDT or SOLUSDT)</th>
                 <th>Indicator</th>
-                <th>TF</th>
-                <th style="text-align: right;">Current Price</th>
+                <th>Timeframe</th>
+                <th>Original Live Price (Futures)</th>
+                <th>Market Source</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="tableBody">
             <!-- Row 1 -->
             <tr>
-                <td>
-                    <input type="text" value="BTCUSDT" id="sym0" onchange="updateRow(0)">
-                    <div class="source-text" id="src0">Binance (Crypto)</div>
-                </td>
-                <td>
-                    <select id="ind0"><option>MACD</option><option>EMA Cross</option><option>RSI</option></select>
-                </td>
-                <td><input type="text" value="15m" id="tf0" style="width: 45px;"></td>
-                <td class="price-up" id="price0">Loading...</td>
+                <td><input type="text" value="BTCUSDT" id="sym0" onchange="fetchFuturesPrice(0)"></td>
+                <td><select id="ind0"><option>MACD Cross</option><option>EMA Cross</option><option>RSI Alert</option></select></td>
+                <td><input type="text" value="15m" id="tf0"></td>
+                <td id="price0" style="color: #0ecb81; font-weight: bold;">Loading...</td>
+                <td id="src0">Binance Futures [USD(s)-M]</td>
             </tr>
             <!-- Row 2 -->
             <tr>
-                <td>
-                    <input type="text" value="ETHUSDT" id="sym1" onchange="updateRow(1)">
-                    <div class="source-text" id="src1">Binance (Crypto)</div>
-                </td>
-                <td>
-                    <select id="ind1"><option>EMA Cross</option><option>MACD</option><option>RSI</option></select>
-                </td>
-                <td><input type="text" value="30m" id="tf1" style="width: 45px;"></td>
-                <td class="price-up" id="price1">Loading...</td>
+                <td><input type="text" value="ETHUSDT" id="sym1" onchange="fetchFuturesPrice(1)"></td>
+                <td><select id="ind1"><option>EMA Cross</option><option>MACD Cross</option><option>RSI Alert</option></select></td>
+                <td><input type="text" value="30m" id="tf1"></td>
+                <td id="price1" style="color: #0ecb81; font-weight: bold;">Loading...</td>
+                <td id="src1">Binance Futures [USD(s)-M]</td>
             </tr>
             <!-- Row 3 -->
             <tr>
-                <td>
-                    <input type="text" value="RELIANCE" id="sym2" onchange="updateRow(2)">
-                    <div class="source-text" id="src2">NSE India (Stock)</div>
-                </td>
-                <td>
-                    <select id="ind2"><option>RSI</option><option>MACD</option><option>EMA Cross</option></select>
-                </td>
-                <td><input type="text" value="1h" id="tf2" style="width: 45px;"></td>
-                <td class="price-up" id="price2">₹2,945.00</td>
+                <td><input type="text" value="SOLUSDT" id="sym2" onchange="fetchFuturesPrice(2)"></td>
+                <td><select id="ind2"><option>RSI Alert</option><option>MACD Cross</option><option>EMA Cross</option></select></td>
+                <td><input type="text" value="1h" id="tf2"></td>
+                <td id="price2" style="color: #0ecb81; font-weight: bold;">Loading...</td>
+                <td id="src2">Binance Futures [USD(s)-M]</td>
             </tr>
             <!-- Row 4 -->
             <tr>
-                <td>
-                    <input type="text" value="TCS" id="sym3" onchange="updateRow(3)">
-                    <div class="source-text" id="src3">BSE India (Stock)</div>
-                </td>
-                <td>
-                    <select id="ind3"><option>MACD</option><option>EMA Cross</option><option>RSI</option></select>
-                </td>
-                <td><input type="text" value="4h" id="tf3" style="width: 45px;"></td>
-                <td class="price-up" id="price3">₹3,625.00</td>
+                <td><input type="text" value="BNBUSDT" id="sym3" onchange="fetchFuturesPrice(3)"></td>
+                <td><select id="ind3"><option>MACD Cross</option><option>EMA Cross</option><option>RSI Alert</option></select></td>
+                <td><input type="text" value="4h" id="tf3"></td>
+                <td id="price3" style="color: #0ecb81; font-weight: bold;">Loading...</td>
+                <td id="src3">Binance Futures [USD(s)-M]</td>
             </tr>
         </tbody>
     </table>
-</div>
 
-<script>
-    async function fetchPrice(rowIndex) {
-        const symbolInput = document.getElementById(`sym${rowIndex}`).value.toUpperCase().trim();
-        if (!symbolInput) return;
-
-        // Auto detect Crypto vs Stocks based on ending with USDT or common crypto pairs
-        if (symbolInput.endsWith('USDT') || symbolInput.endsWith('BTC') || symbolInput.length > 6) {
+    <script>
+        // 🔌 Real Binance USD(s)-M Futures API Connection
+        async function fetchFuturesPrice(rowIndex) {
+            const symbol = document.getElementById(`sym${rowIndex}`).value.toUpperCase().trim();
+            if(!symbol) return;
+            
             try {
-                const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbolInput}`);
+                // Using Binance Futures API endpoint
+                const response = await fetch(`https://binance.com{symbol}`);
                 const data = await response.json();
-                if (data.price) {
-                    document.getElementById(`price${rowIndex}`).innerText = parseFloat(data.price).toLocaleString(undefined, {minimumFractionDigits: 2}) + " USDT";
-                    document.getElementById(`src${rowIndex}`).innerText = "Binance (Crypto)";
-                    return;
+                if(data.price) {
+                    document.getElementById(`price${rowIndex}`).innerText = parseFloat(data.price).toFixed(2) + " USDT";
+                    document.getElementById(`src${rowIndex}`).innerText = "Binance Futures [USD(s)-M]";
+                } else {
+                    document.getElementById(`price${rowIndex}`).innerText = "Symbol Not Found";
+                    document.getElementById(`src${rowIndex}`).innerText = "Check Future Name";
                 }
             } catch (e) {
-                console.log("Error fetching from Binance");
+                console.log("Error fetching futures price");
             }
         }
+
+        // 📲 Telegram Push Message Trigger
+        function sendTelegramAlert(message) {
+            const token = document.getElementById('botToken').value;
+            const chat = document.getElementById('chatId').value;
+            if(!token || !chat) return;
+            fetch(`https://telegram.org{token}/sendMessage?chat_id=${chat}&text=${encodeURIComponent(message)}`);
+        }
+
+        function testTelegram() {
+            sendTelegramAlert("🔔 Test Alert: Your USD(s)-M Futures Telegram Notification is Working Perfectly!");
+        }
+
+        // Keep updating prices every 2 seconds
+        setInterval(() => {
+            for(let i=0; i<4; i++) { fetchFuturesPrice(i); }
+        }, 2000);
         
-        // Fallback or stock display simulation
-        document.getElementById(`src${rowIndex}`).innerText = symbolInput.includes('RELIANCE') || symbolInput.includes('TCS') ? "NSE/BSE India" : "Custom Asset";
-    }
-
-    function updateRow(index) {
-        fetchPrice(index);
-    }
-
-    function sendTelegramMessage(text) {
-        const token = document.getElementById('botToken').value.trim();
-        const chat = document.getElementById('chatId').value.trim();
-        if (!token || !chat) return;
-
-        fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chat}&text=${encodeURIComponent(text)}`)
-            .catch(err => console.error("Telegram send error:", err));
-    }
-
-    function testTelegram() {
-        sendTelegramMessage("🔔 Minimalist Trading Tool: Setup Success! Ready to receive crossover alerts.");
-    }
-
-    // Auto refresh live prices for fields every few seconds
-    setInterval(() => {
-        fetchPrice(0);
-        fetchPrice(1);
-    }, 4000);
-
-    // Initial load
-    window.onload = () => {
-        fetchPrice(0);
-        fetchPrice(1);
-    };
-</script>
-
+        // Initial load
+        window.onload = function() { for(let i=0; i<4; i++) { fetchFuturesPrice(i); } };
+    </script>
 </body>
 </html>
