@@ -163,7 +163,6 @@
 <script>
     let lastAlertedState = {};
 
-    // অন/অফ সুইচ কন্ট্রোল ফাংশন
     function toggleRow(i) {
         const statusBox = document.getElementById(`status${i}`);
         const card = document.getElementById(`card${i}`);
@@ -212,12 +211,12 @@
             const result = await response.json();
             if (result.data && result.data.length > 0) {
                 const values = result.data.d;
-                const currentPrice = values;
-                const rsiVal = values;
-                const macdMain = values;
-                const macdSignal = values;
-                const ema20 = values;
-                const ema50 = values;
+                const currentPrice = values[0];
+                const rsiVal = values[1];
+                const macdMain = values[2];
+                const macdSignal = values[3];
+                const ema20 = values[4];
+                const ema50 = values[5];
 
                 let currencySign = symbol.includes("NSE") || symbol.includes("BSE") ? "₹" : "$";
                 document.getElementById(`price${rowIndex}`).innerText = `${currencySign} ${parseFloat(currentPrice).toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
