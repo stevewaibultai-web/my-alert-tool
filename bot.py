@@ -2,8 +2,8 @@ import time
 import requests
 
 # 🤖 TELEGRAM CONFIGURATION (Replace with your actual data later)
-TOKEN = "YOUR_BOT_TOKEN_HERE"  
-CHAT_ID = "YOUR_CHAT_ID_HERE"  
+TOKEN = "8910250156 :AAFXETIQy7ILusg- -h5F E1PKg-dLFgS7hpg"  
+CHAT_ID = "7287275405"  
 
 # 📊 TRACKED SYMBOLS SETUP
 TRACKED_SYMBOLS = [
