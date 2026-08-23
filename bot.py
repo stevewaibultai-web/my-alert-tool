@@ -6,14 +6,6 @@ import numpy as np
 BOT_TOKEN = "8910250156 :AAFXETIQy7ILusg- -h5F E1PKg-dLFgS7hpg"
 CHAT_ID = "7287275405"
 
-def send_telegram(message):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": message}
-    try:
-        requests.post(url, data=payload)
-    except Exception as e:
-        print("Telegram Error:", e
-
 # Binance API Endpoint
 BINANCE_URL = "https://api.binance.com/api/v3/klines"
 
