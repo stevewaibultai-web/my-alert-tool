@@ -3,7 +3,7 @@ import time
 import numpy as np
 
 # Telegram credentials
-BOT_TOKEN = "8910250156 :AAFXETIQy7ILusg- -h5F E1PKg-dLFgS7hpg"
+BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"
 CHAT_ID = "7287275405"
 
 # Binance API Endpoint
@@ -54,11 +54,11 @@ def run_bot(symbol="BTCUSDT", interval="1m"):
                 send_alert(f"📉 Bearish MACD Crossover on {symbol} ({interval}) | Price: {closes[-1]}")
                 last_signal = "bearish"
             
-            time.sleep(30)  # প্রতি ৩০ সেকেন্ডে চেক করবে
+            time.sleep(30)  # checks every 30 seconds
         except Exception as e:
             print("Error:", e)
             time.sleep(60)
 
 # Run Bot
 if __name__ == "__main__":
-    run_bot("BTCUSDT", "1m")  # এখানে symbol আর timeframe কাস্টমাইজ করতে পারো
+    run_bot("BTCUSDT", "1m")  # customize symbol and timeframe here
