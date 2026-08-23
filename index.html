@@ -38,35 +38,30 @@
       <th>Indicator</th>
       <th>Timeframe</th>
       <th>Current Price</th>
-      <th>Alert</th>
     </tr>
     <tr>
       <td><input type="text" id="sym0" value="BTCUSDT" onchange="initRow(0)"></td>
-      <td><select id="ind0"><option>MACD</option></select></td>
-      <td><select id="tf0"><option>1m</option><option>5m</option><option>15m</option></select></td>
+      <td>MACD</td>
+      <td>1m</td>
       <td id="price0" class="price">Loading...</td>
-      <td><button onclick="sendTelegramAlert(0)">Send Alert</button></td>
     </tr>
     <tr>
       <td><input type="text" id="sym1" value="ETHUSDT" onchange="initRow(1)"></td>
-      <td><select id="ind1"><option>MACD</option></select></td>
-      <td><select id="tf1"><option>1m</option><option>5m</option><option>15m</option></select></td>
+      <td>MACD</td>
+      <td>1m</td>
       <td id="price1" class="price">Loading...</td>
-      <td><button onclick="sendTelegramAlert(1)">Send Alert</button></td>
     </tr>
     <tr>
       <td><input type="text" id="sym2" value="RELIANCE" onchange="initRow(2)"></td>
-      <td><select id="ind2"><option>MACD</option></select></td>
-      <td><select id="tf2"><option>1m</option><option>5m</option><option>15m</option></select></td>
+      <td>MACD</td>
+      <td>1m</td>
       <td id="price2" class="price">Loading...</td>
-      <td><button onclick="sendTelegramAlert(2)">Send Alert</button></td>
     </tr>
     <tr>
       <td><input type="text" id="sym3" value="TCS" onchange="initRow(3)"></td>
-      <td><select id="ind3"><option>MACD</option></select></td>
-      <td><select id="tf3"><option>1m</option><option>5m</option><option>15m</option></select></td>
+      <td>MACD</td>
+      <td>1m</td>
       <td id="price3" class="price">Loading...</td>
-      <td><button onclick="sendTelegramAlert(3)">Send Alert</button></td>
     </tr>
   </table>
 
@@ -96,52 +91,74 @@
       .catch(() => document.getElementById('status').innerText = "❌ Network Error");
   }
 
-  // Send Alert Function
-  function sendTelegramAlert(i) {
-    let sym = document.getElementById(`sym${i}`).value;
-    let tf = document.getElementById(`tf${i}`).value;
-    let price = document.getElementById(`price${i}`).innerText;
-    let msg = `📢 Alert: ${sym} | TF: ${tf} | Price: ${price}`;
+  // Telegram Alert Function
+  function sendTelegramAlert(msg) {
     fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}`);
   }
 
-  let intervals = {};
-  async function initRow(i) {
-    let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
-    if(intervals[i]) clearInterval(intervals[i]);
+  // EMA Calculation
+  function calculateEMA(prices, period) {
+    let k = 2 / (period + 1);
+    let emaArray = [];
+    emaArray[0] = prices[0];
+    for(let i=1; i<prices.length; i++) {
+      emaArray[i] = prices[i] * k + emaArray[i-1] * (1-k);
+    }
+    return emaArray;
+  }
 
-    if(sym === "RELIANCE" || sym === "TCS") {
-      let ticker = sym + ".NS";
-      fetchStock(i, ticker);
-      intervals[i] = setInterval(() => fetchStock(i, ticker), 5000);
-    } else {
-      fetchCrypto(i, sym);
-      intervals[i] = setInterval(() => fetchCrypto(i, sym), 3000);
+  // MACD Calculation
+  function calculateMACD(prices) {
+    let emaFast = calculateEMA(prices, 12);
+    let emaSlow = calculateEMA(prices, 26);
+    let macdLine = emaFast.map((val, i) => val - emaSlow[i]);
+    let signalLine = calculateEMA(macdLine, 9);
+    return { macdLine, signalLine };
+  }
+
+  // Check MACD Signal
+  function checkMACD(symbol, prices) {
+    let { macdLine, signalLine } = calculateMACD(prices);
+    let lastMacd = macdLine[macdLine.length-1];
+    let prevMacd = macdLine[macdLine.length-2];
+    let lastSignal = signalLine[signalLine.length-1];
+    let prevSignal = signalLine[signalLine.length-2];
+
+    if(prevMacd < prevSignal && lastMacd > lastSignal) {
+      sendTelegramAlert(`📈 MACD Bullish Crossover: ${symbol} | Price: ${prices[prices.length-1]}`);
+    } else if(prevMacd > prevSignal && lastMacd < lastSignal) {
+      sendTelegramAlert(`📉 MACD Bearish Crossover: ${symbol} | Price: ${prices[prices.length-1]}`);
     }
   }
 
+  // Fetch Crypto Prices + Auto MACD Alert
   async function fetchCrypto(i, symbol) {
     try {
-      const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+      const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=50`);
       const data = await res.json();
-      if(data.price) document.getElementById(`price${i}`).innerText = `$ ${parseFloat(data.price).toLocaleString()}`;
+      let closes = data.map(candle => parseFloat(candle[4])); // Close prices
+      let lastPrice = closes[closes.length-1];
+      document.getElementById(`price${i}`).innerText = `$ ${lastPrice.toLocaleString()}`;
+      checkMACD(symbol, closes);
     } catch(e) { document.getElementById(`price${i}`).innerText = "Error"; }
   }
 
+  // Fetch Stock Prices + Auto MACD Alert
   async function fetchStock(i, ticker) {
     try {
-      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`);
+      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1m&range=1d`);
       const data = await res.json();
-      const price = data.chart.result[0].meta.regularMarketPrice;
-      if(price) {
-        document.getElementById(`price${i}`).innerText = `₹ ${parseFloat(price).toLocaleString('en-IN')}`;
+      let closes = data.chart.result[0].indicators.quote[0].close.filter(v => v != null);
+      let lastPrice = closes[closes.length-1];
+      if(lastPrice) {
+        document.getElementById(`price${i}`).innerText = `₹ ${lastPrice.toLocaleString('en-IN')}`;
+        checkMACD(ticker, closes);
       } else {
         document.getElementById(`price${i}`).innerText = "Market Closed";
       }
     } catch(e) { document.getElementById(`price${i}`).innerText = "Error"; }
   }
 
-  window.onload = function() { for(let i=0; i<4; i++) { initRow(i); } };
-</script>
-</body>
-</html>
+  let intervals = {};
+  function initRow(i) {
+    let sym = document.get
