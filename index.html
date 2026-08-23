@@ -111,6 +111,56 @@
     return { macdLine, signalLine, histogram };
   }
 
+// Crypto Price Fetch
+async function fetchCrypto(i, symbol, tf="1m") {
+  try {
+    const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+    const data = await res.json();
+    if(data.price) {
+      let price = parseFloat(data.price);
+      document.getElementById(`price${i}`).innerText = `$ ${price.toLocaleString()}`;
+    }
+  } catch(e) {
+    document.getElementById(`price${i}`).innerText = "Error";
+  }
+}
+
+// Stock Price Fetch
+async function fetchStock(i, ticker) {
+  try {
+    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1m&range=1d`);
+    const data = await res.json();
+    let closes = data.chart.result[0].indicators.quote[0].close.filter(v => v != null);
+    let lastPrice = closes[closes.length-1];
+    if(lastPrice) {
+      document.getElementById(`price${i}`).innerText = `₹ ${lastPrice.toLocaleString('en-IN')}`;
+    } else {
+      document.getElementById(`price${i}`).innerText = "Market Closed";
+    }
+  } catch(e) {
+    document.getElementById(`price${i}`).innerText = "Error";
+  }
+}
+
+// Row Initialization
+let intervals = {};
+function initRow(i) {
+  let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
+  if(intervals[i]) clearInterval(intervals[i]);
+
+  if(sym === "RELIANCE" || sym === "TCS") {
+    let ticker = sym + ".NS";
+    fetchStock(i, ticker);
+    intervals[i] = setInterval(() => fetchStock(i, ticker), 5000);
+  } else {
+    fetchCrypto(i, sym);
+    intervals[i] = setInterval(() => fetchCrypto(i, sym), 3000);
+  }
+}
+
+// Auto-load all rows
+window.onload = function() { for(let i=0; i<4; i++) { initRow(i); } };
+    
   // Check MACD Signal
   function checkMACD(symbol, prices) {
     let { macdLine, signalLine } = calculateMACD(prices);
