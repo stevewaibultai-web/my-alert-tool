@@ -1,7 +1,6 @@
 import requests
 import time
-import yfinance as yf
-import pandas as pd
+import numpy as np
 
 # Telegram credentials
 BOT_TOKEN = "8910250156 :AAFXETIQy7ILusg- -h5F E1PKg-dLFgS7hpg"
@@ -13,62 +12,61 @@ def send_telegram(message):
     try:
         requests.post(url, data=payload)
     except Exception as e:
-        print("Telegram Error:", e)
+        print("Telegram Error:", e
 
-def get_binance_price(symbol):
-    try:
-        url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
-        res = requests.get(url).json()
-        return float(res["price"])
-    except:
-        return None
+# Binance API Endpoint
+BINANCE_URL = "https://api.binance.com/api/v3/klines"
 
-def get_nse_price(symbol):
-    try:
-        ticker = yf.Ticker(symbol + ".NS")
-        data = ticker.history(period="1d")
-        return float(data["Close"].iloc[-1])
-    except:
-        return None
+# EMA Calculation
+def calculate_ema(prices, period):
+    ema = []
+    k = 2 / (period + 1)
+    ema.append(prices[0])
+    for i in range(1, len(prices)):
+        ema.append(prices[i] * k + ema[-1] * (1 - k))
+    return np.array(ema)
 
-def calculate_macd(prices, fast=12, slow=26, signal=9):
-    series = pd.Series(prices)
-    ema_fast = series.ewm(span=fast).mean()
-    ema_slow = series.ewm(span=slow).mean()
-    macd = ema_fast - ema_slow
-    signal_line = macd.ewm(span=signal).mean()
-    return macd.iloc[-1], signal_line.iloc[-1]
+# MACD Calculation
+def calculate_macd(prices):
+    ema_fast = calculate_ema(prices, 12)
+    ema_slow = calculate_ema(prices, 26)
+    macd_line = ema_fast - ema_slow
+    signal_line = calculate_ema(macd_line, 9)
+    return macd_line, signal_line
 
-def check_signal(symbol, market="binance"):
-    if market == "binance":
-        price = get_binance_price(symbol)
-    else:
-        price = get_nse_price(symbol)
-    if not price:
-        return None
+# Telegram Alert
+def send_alert(message):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    requests.post(url, data={"chat_id": CHAT_ID, "text": message})
 
-    # Dummy price history for MACD (replace with real candles)
-    prices = [price for _ in range(50)]
-    macd, signal_line = calculate_macd(prices)
+# Fetch Data from Binance
+def fetch_data(symbol="BTCUSDT", interval="1m", limit=100):
+    params = {"symbol": symbol, "interval": interval, "limit": limit}
+    res = requests.get(BINANCE_URL, params=params).json()
+    closes = [float(candle[4]) for candle in res]
+    return closes
 
-    if macd > signal_line:
-        return f"🔔 BUY Signal on {symbol} (MACD Cross)"
-    elif macd < signal_line:
-        return f"🔔 SELL Signal on {symbol} (MACD Cross)"
-    else:
-        return None
-
-if __name__ == "__main__":
-    symbols = [
-        ("BTCUSDT", "binance"),
-        ("ETHUSDT", "binance"),
-        ("RELIANCE", "nse"),
-        ("TCS", "nse")
-    ]
+# Main Loop
+def run_bot(symbol="BTCUSDT", interval="1m"):
+    last_signal = None
     while True:
-        for sym, market in symbols:
-            signal = check_signal(sym, market)
-            if signal:
-                send_telegram(signal)
-                print(signal)
-        time.sleep(60)  # check every minute
+        try:
+            closes = fetch_data(symbol, interval)
+            macd, signal = calculate_macd(closes)
+            
+            if macd[-1] > signal[-1] and last_signal != "bullish":
+                send_alert(f"📈 Bullish MACD Crossover on {symbol} ({interval}) | Price: {closes[-1]}")
+                last_signal = "bullish"
+            
+            elif macd[-1] < signal[-1] and last_signal != "bearish":
+                send_alert(f"📉 Bearish MACD Crossover on {symbol} ({interval}) | Price: {closes[-1]}")
+                last_signal = "bearish"
+            
+            time.sleep(30)  # প্রতি ৩০ সেকেন্ডে চেক করবে
+        except Exception as e:
+            print("Error:", e)
+            time.sleep(60)
+
+# Run Bot
+if __name__ == "__main__":
+    run_bot("BTCUSDT", "1m")  # এখানে symbol আর timeframe কাস্টমাইজ করতে পারো
