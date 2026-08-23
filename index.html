@@ -146,6 +146,10 @@ async function fetchStock(i, ticker) {
 let intervals = {};
 function initRow(i) {
   let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
+
+  // Save symbol to localStorage
+  localStorage.setItem(`symbol${i}`, sym);
+
   if(intervals[i]) clearInterval(intervals[i]);
 
   if(sym === "RELIANCE" || sym === "TCS") {
@@ -157,6 +161,17 @@ function initRow(i) {
     intervals[i] = setInterval(() => fetchCrypto(i, sym), 3000);
   }
 }
+
+// Restore symbols from localStorage when page loads
+window.onload = function() {
+  for(let i=0; i<4; i++) {
+    let savedSym = localStorage.getItem(`symbol${i}`);
+    if(savedSym) {
+      document.getElementById(`sym${i}`).value = savedSym;
+    }
+    initRow(i);
+  }
+};
 
 // Auto-load all rows
 window.onload = function() { for(let i=0; i<4; i++) { initRow(i); } };
