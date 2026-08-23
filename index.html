@@ -146,9 +146,13 @@ async function fetchStock(i, ticker) {
 let intervals = {};
 function initRow(i) {
   let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
+  let tf = document.getElementById(`tf${i}`).value;
+  let ind = document.getElementById(`ind${i}`).value;
 
-  // Save symbol to localStorage
+  // Save settings to localStorage
   localStorage.setItem(`symbol${i}`, sym);
+  localStorage.setItem(`timeframe${i}`, tf);
+  localStorage.setItem(`indicator${i}`, ind);
 
   if(intervals[i]) clearInterval(intervals[i]);
 
@@ -157,18 +161,22 @@ function initRow(i) {
     fetchStock(i, ticker);
     intervals[i] = setInterval(() => fetchStock(i, ticker), 5000);
   } else {
-    fetchCrypto(i, sym);
-    intervals[i] = setInterval(() => fetchCrypto(i, sym), 3000);
+    fetchCrypto(i, sym, tf);
+    intervals[i] = setInterval(() => fetchCrypto(i, sym, tf), 3000);
   }
 }
 
-// Restore symbols from localStorage when page loads
+// Restore settings from localStorage when page loads
 window.onload = function() {
   for(let i=0; i<4; i++) {
     let savedSym = localStorage.getItem(`symbol${i}`);
-    if(savedSym) {
-      document.getElementById(`sym${i}`).value = savedSym;
-    }
+    let savedTf = localStorage.getItem(`timeframe${i}`);
+    let savedInd = localStorage.getItem(`indicator${i}`);
+
+    if(savedSym) document.getElementById(`sym${i}`).value = savedSym;
+    if(savedTf) document.getElementById(`tf${i}`).value = savedTf;
+    if(savedInd) document.getElementById(`ind${i}`).value = savedInd;
+
     initRow(i);
   }
 };
