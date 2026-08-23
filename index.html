@@ -38,30 +38,35 @@
       <th>Indicator</th>
       <th>Timeframe</th>
       <th>Current Price</th>
+      <th>Alert</th>
     </tr>
     <tr>
       <td><input type="text" id="sym0" value="BTCUSDT" onchange="initRow(0)"></td>
-      <td>MACD</td>
-      <td>1m</td>
+      <td><select id="ind0"><option>MACD</option></select></td>
+      <td><select id="tf0"><option>1m</option><option>5m</option><option>15m</option></select></td>
       <td id="price0" class="price">Loading...</td>
+      <td><button onclick="sendTelegramAlert(0)">Send Alert</button></td>
     </tr>
     <tr>
       <td><input type="text" id="sym1" value="ETHUSDT" onchange="initRow(1)"></td>
-      <td>MACD</td>
-      <td>1m</td>
+      <td><select id="ind1"><option>MACD</option></select></td>
+      <td><select id="tf1"><option>1m</option><option>5m</option><option>15m</option></select></td>
       <td id="price1" class="price">Loading...</td>
+      <td><button onclick="sendTelegramAlert(1)">Send Alert</button></td>
     </tr>
     <tr>
       <td><input type="text" id="sym2" value="RELIANCE" onchange="initRow(2)"></td>
-      <td>MACD</td>
-      <td>1m</td>
+      <td><select id="ind2"><option>MACD</option></select></td>
+      <td><select id="tf2"><option>1m</option><option>5m</option><option>15m</option></select></td>
       <td id="price2" class="price">Loading...</td>
+      <td><button onclick="sendTelegramAlert(2)">Send Alert</button></td>
     </tr>
     <tr>
       <td><input type="text" id="sym3" value="TCS" onchange="initRow(3)"></td>
-      <td>MACD</td>
-      <td>1m</td>
+      <td><select id="ind3"><option>MACD</option></select></td>
+      <td><select id="tf3"><option>1m</option><option>5m</option><option>15m</option></select></td>
       <td id="price3" class="price">Loading...</td>
+      <td><button onclick="sendTelegramAlert(3)">Send Alert</button></td>
     </tr>
   </table>
 
@@ -76,20 +81,9 @@
     </ul>
   </div>
 
-<script>
+  <script>
   const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
   const CHAT_ID = "7287275405";
-
-  // Telegram Connection Test
-  function testTelegram() {
-    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=🔔 Test Message from Dashboard!`)
-      .then(res => res.json())
-      .then(data => {
-        if(data.ok) document.getElementById('status').innerText = "✅ Connection OK!";
-        else document.getElementById('status').innerText = "❌ Check Token/ID";
-      })
-      .catch(() => document.getElementById('status').innerText = "❌ Network Error");
-  }
 
   // Telegram Alert Function
   function sendTelegramAlert(msg) {
@@ -113,7 +107,8 @@
     let emaSlow = calculateEMA(prices, 26);
     let macdLine = emaFast.map((val, i) => val - emaSlow[i]);
     let signalLine = calculateEMA(macdLine, 9);
-    return { macdLine, signalLine };
+    let histogram = macdLine.map((val, i) => val - signalLine[i]);
+    return { macdLine, signalLine, histogram };
   }
 
   // Check MACD Signal
@@ -158,7 +153,4 @@
       }
     } catch(e) { document.getElementById(`price${i}`).innerText = "Error"; }
   }
-
-  let intervals = {};
-  function initRow(i) {
-    let sym = document.get
+  </script>
