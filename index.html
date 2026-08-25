@@ -13,10 +13,6 @@
     td input { background: transparent; border: none; color: #fff; text-align: center; font-weight: bold; }
     select { background: #1b2e54; color: #fff; border: 1px solid #2d4b85; border-radius: 4px; padding: 5px; }
     .price { font-weight: bold; color: #0ecb81; }
-    .market-info { background: #132240; padding: 15px; border-radius: 8px; }
-    .market-info h3 { color: #38a1f3; margin-bottom: 10px; }
-    .market-info ul { list-style: none; padding: 0; }
-    .market-info li { margin: 5px 0; color: #8fa0c2; }
     .config-box { background: #132240; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
     button { background: #0088cc; font-weight: bold; cursor: pointer; border: none; padding: 10px; border-radius: 6px; width: 100%; }
     .status-text { font-size: 12px; margin-top: 5px; color: #0ecb81; }
@@ -40,188 +36,83 @@
       <th>Current Price</th>
       <th>Alert</th>
     </tr>
+    <!-- Example rows -->
     <tr>
       <td><input type="text" id="sym0" value="BTCUSDT" onchange="initRow(0)"></td>
       <td><select id="ind0"><option>MACD</option></select></td>
-      <td><select id="tf0"><option>1m</option><option>5m</option><option>15m</option></select></td>
+      <td><select id="tf0"><option>1m</option><option>3m</option><option>5m</option><option>15m</option></select></td>
       <td id="price0" class="price">Loading...</td>
       <td><button onclick="sendTelegramAlert(0)">Send Alert</button></td>
     </tr>
     <tr>
-      <td><input type="text" id="sym1" value="ETHUSDT" onchange="initRow(1)"></td>
+      <td><input type="text" id="sym1" value="NIFTY50" onchange="initRow(1)"></td>
       <td><select id="ind1"><option>MACD</option></select></td>
-      <td><select id="tf1"><option>1m</option><option>5m</option><option>15m</option></select></td>
+      <td><select id="tf1"><option>1m</option><option>3m</option><option>5m</option><option>15m</option></select></td>
       <td id="price1" class="price">Loading...</td>
       <td><button onclick="sendTelegramAlert(1)">Send Alert</button></td>
     </tr>
     <tr>
-      <td><input type="text" id="sym2" value="RELIANCE" onchange="initRow(2)"></td>
+      <td><input type="text" id="sym2" value="SENSEX" onchange="initRow(2)"></td>
       <td><select id="ind2"><option>MACD</option></select></td>
-      <td><select id="tf2"><option>1m</option><option>5m</option><option>15m</option></select></td>
+      <td><select id="tf2"><option>1m</option><option>3m</option><option>5m</option><option>15m</option></select></td>
       <td id="price2" class="price">Loading...</td>
       <td><button onclick="sendTelegramAlert(2)">Send Alert</button></td>
     </tr>
     <tr>
-      <td><input type="text" id="sym3" value="TCS" onchange="initRow(3)"></td>
+      <td><input type="text" id="sym3" value="CRUDEOILM" onchange="initRow(3)"></td>
       <td><select id="ind3"><option>MACD</option></select></td>
-      <td><select id="tf3"><option>1m</option><option>5m</option><option>15m</option></select></td>
+      <td><select id="tf3"><option>1m</option><option>3m</option><option>5m</option><option>15m</option></select></td>
       <td id="price3" class="price">Loading...</td>
       <td><button onclick="sendTelegramAlert(3)">Send Alert</button></td>
     </tr>
+    <tr>
+      <td><input type="text" id="sym4" value="NATGASM" onchange="initRow(4)"></td>
+      <td><select id="ind4"><option>MACD</option></select></td>
+      <td><select id="tf4"><option>1m</option><option>3m</option><option>5m</option><option>15m</option></select></td>
+      <td id="price4" class="price">Loading...</td>
+      <td><button onclick="sendTelegramAlert(4)">Send Alert</button></td>
+    </tr>
   </table>
 
-  <!-- Market Info -->
-  <div class="market-info">
-    <h3>Market Info</h3>
-    <ul>
-      <li>BTCUSDT: Binance (Crypto)</li>
-      <li>ETHUSDT: Binance (Crypto)</li>
-      <li>RELIANCE: NSE India (Stock)</li>
-      <li>TCS: BSE India (Stock)</li>
-    </ul>
-  </div>
-
   <script>
-  const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
+  const BOT_TOKEN = "8910250156 :AAFXETIQy7ILusg- -h5F E1PKg-dLFgS7hpg"; 
   const CHAT_ID = "7287275405";
 
-  // Telegram Alert Function
   function sendTelegramAlert(msg) {
     fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}`);
   }
 
-  // EMA Calculation
-  function calculateEMA(prices, period) {
-    let k = 2 / (period + 1);
-    let emaArray = [];
-    emaArray[0] = prices[0];
-    for(let i=1; i<prices.length; i++) {
-      emaArray[i] = prices[i] * k + emaArray[i-1] * (1-k);
-    }
-    return emaArray;
+  // Sync with Python bot via Flask API
+  async function syncWithPython(symbol, timeframe) {
+    await fetch("http://localhost:5000/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol, timeframe })
+    });
   }
 
-  // MACD Calculation
-  function calculateMACD(prices) {
-    let emaFast = calculateEMA(prices, 12);
-    let emaSlow = calculateEMA(prices, 26);
-    let macdLine = emaFast.map((val, i) => val - emaSlow[i]);
-    let signalLine = calculateEMA(macdLine, 9);
-    let histogram = macdLine.map((val, i) => val - signalLine[i]);
-    return { macdLine, signalLine, histogram };
-  }
+  let intervals = {};
+  function initRow(i) {
+    let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
+    let tf = document.getElementById(`tf${i}`).value;
 
-// Crypto Price Fetch
-async function fetchCrypto(i, symbol, tf="1m") {
-  try {
-    const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
-    const data = await res.json();
-    if(data.price) {
-      let price = parseFloat(data.price);
-      document.getElementById(`price${i}`).innerText = `$ ${price.toLocaleString()}`;
-    }
-  } catch(e) {
-    document.getElementById(`price${i}`).innerText = "Error";
-  }
-}
+    localStorage.setItem(`symbol${i}`, sym);
+    localStorage.setItem(`timeframe${i}`, tf);
 
-// Stock Price Fetch
-async function fetchStock(i, ticker) {
-  try {
-    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1m&range=1d`);
-    const data = await res.json();
-    let closes = data.chart.result[0].indicators.quote[0].close.filter(v => v != null);
-    let lastPrice = closes[closes.length-1];
-    if(lastPrice) {
-      document.getElementById(`price${i}`).innerText = `₹ ${lastPrice.toLocaleString('en-IN')}`;
+    if(intervals[i]) clearInterval(intervals[i]);
+
+    // Sync with Python bot
+    syncWithPython(sym, tf);
+
+    // Fetch price (Binance or Yahoo Finance depending on symbol)
+    if(sym === "NIFTY50" || sym === "SENSEX" || sym === "CRUDEOILM" || sym === "NATGASM") {
+      fetchStock(i, sym);
+      intervals[i] = setInterval(() => fetchStock(i, sym), 5000);
     } else {
-      document.getElementById(`price${i}`).innerText = "Market Closed";
+      fetchCrypto(i, sym, tf);
+      intervals[i] = setInterval(() => fetchCrypto(i, sym, tf), 3000);
     }
-  } catch(e) {
-    document.getElementById(`price${i}`).innerText = "Error";
-  }
-}
-
-// Row Initialization
-let intervals = {};
-function initRow(i) {
-  let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
-  let tf = document.getElementById(`tf${i}`).value;
-  let ind = document.getElementById(`ind${i}`).value;
-
-  // Save settings to localStorage
-  localStorage.setItem(`symbol${i}`, sym);
-  localStorage.setItem(`timeframe${i}`, tf);
-  localStorage.setItem(`indicator${i}`, ind);
-
-  if(intervals[i]) clearInterval(intervals[i]);
-
-  if(sym === "RELIANCE" || sym === "TCS") {
-    let ticker = sym + ".NS";
-    fetchStock(i, ticker);
-    intervals[i] = setInterval(() => fetchStock(i, ticker), 5000);
-  } else {
-    fetchCrypto(i, sym, tf);
-    intervals[i] = setInterval(() => fetchCrypto(i, sym, tf), 3000);
-  }
-}
-
-// Restore settings from localStorage when page loads
-window.onload = function() {
-  for(let i=0; i<4; i++) {
-    let savedSym = localStorage.getItem(`symbol${i}`);
-    let savedTf = localStorage.getItem(`timeframe${i}`);
-    let savedInd = localStorage.getItem(`indicator${i}`);
-
-    if(savedSym) document.getElementById(`sym${i}`).value = savedSym;
-    if(savedTf) document.getElementById(`tf${i}`).value = savedTf;
-    if(savedInd) document.getElementById(`ind${i}`).value = savedInd;
-
-    initRow(i);
-  }
-};
-
-    
-  // Check MACD Signal
-  function checkMACD(symbol, prices) {
-    let { macdLine, signalLine } = calculateMACD(prices);
-    let lastMacd = macdLine[macdLine.length-1];
-    let prevMacd = macdLine[macdLine.length-2];
-    let lastSignal = signalLine[signalLine.length-1];
-    let prevSignal = signalLine[signalLine.length-2];
-
-    if(prevMacd < prevSignal && lastMacd > lastSignal) {
-      sendTelegramAlert(`📈 MACD Bullish Crossover: ${symbol} | Price: ${prices[prices.length-1]}`);
-    } else if(prevMacd > prevSignal && lastMacd < lastSignal) {
-      sendTelegramAlert(`📉 MACD Bearish Crossover: ${symbol} | Price: ${prices[prices.length-1]}`);
-    }
-  }
-
-  // Fetch Crypto Prices + Auto MACD Alert
-  async function fetchCrypto(i, symbol) {
-    try {
-      const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=50`);
-      const data = await res.json();
-      let closes = data.map(candle => parseFloat(candle[4])); // Close prices
-      let lastPrice = closes[closes.length-1];
-      document.getElementById(`price${i}`).innerText = `$ ${lastPrice.toLocaleString()}`;
-      checkMACD(symbol, closes);
-    } catch(e) { document.getElementById(`price${i}`).innerText = "Error"; }
-  }
-
-  // Fetch Stock Prices + Auto MACD Alert
-  async function fetchStock(i, ticker) {
-    try {
-      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1m&range=1d`);
-      const data = await res.json();
-      let closes = data.chart.result[0].indicators.quote[0].close.filter(v => v != null);
-      let lastPrice = closes[closes.length-1];
-      if(lastPrice) {
-        document.getElementById(`price${i}`).innerText = `₹ ${lastPrice.toLocaleString('en-IN')}`;
-        checkMACD(ticker, closes);
-      } else {
-        document.getElementById(`price${i}`).innerText = "Market Closed";
-      }
-    } catch(e) { document.getElementById(`price${i}`).innerText = "Error"; }
   }
   </script>
+</body>
+</html>
