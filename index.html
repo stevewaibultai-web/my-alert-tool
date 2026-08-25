@@ -36,50 +36,34 @@
       <th>Current Price</th>
       <th>Alert</th>
     </tr>
-    <!-- Example rows -->
-    <tr>
-      <td><input type="text" id="sym0" value="BTCUSDT" onchange="initRow(0)"></td>
-      <td><select id="ind0"><option>MACD</option></select></td>
-      <td><select id="tf0"><option>1m</option><option>3m</option><option>5m</option><option>15m</option></select></td>
-      <td id="price0" class="price">Loading...</td>
-      <td><button onclick="sendTelegramAlert(0)">Send Alert</button></td>
-    </tr>
-    <tr>
-      <td><input type="text" id="sym1" value="NIFTY50" onchange="initRow(1)"></td>
-      <td><select id="ind1"><option>MACD</option></select></td>
-      <td><select id="tf1"><option>1m</option><option>3m</option><option>5m</option><option>15m</option></select></td>
-      <td id="price1" class="price">Loading...</td>
-      <td><button onclick="sendTelegramAlert(1)">Send Alert</button></td>
-    </tr>
-    <tr>
-      <td><input type="text" id="sym2" value="SENSEX" onchange="initRow(2)"></td>
-      <td><select id="ind2"><option>MACD</option></select></td>
-      <td><select id="tf2"><option>1m</option><option>3m</option><option>5m</option><option>15m</option></select></td>
-      <td id="price2" class="price">Loading...</td>
-      <td><button onclick="sendTelegramAlert(2)">Send Alert</button></td>
-    </tr>
-    <tr>
-      <td><input type="text" id="sym3" value="CRUDEOILM" onchange="initRow(3)"></td>
-      <td><select id="ind3"><option>MACD</option></select></td>
-      <td><select id="tf3"><option>1m</option><option>3m</option><option>5m</option><option>15m</option></select></td>
-      <td id="price3" class="price">Loading...</td>
-      <td><button onclick="sendTelegramAlert(3)">Send Alert</button></td>
-    </tr>
-    <tr>
-      <td><input type="text" id="sym4" value="NATGASM" onchange="initRow(4)"></td>
-      <td><select id="ind4"><option>MACD</option></select></td>
-      <td><select id="tf4"><option>1m</option><option>3m</option><option>5m</option><option>15m</option></select></td>
-      <td id="price4" class="price">Loading...</td>
-      <td><button onclick="sendTelegramAlert(4)">Send Alert</button></td>
-    </tr>
+    <!-- 8 Symbols -->
+    <script>
+      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","NIFTY50","SENSEX","CRUDEOILM","NATGASM","RELIANCE"];
+      symbols.forEach((sym, i) => {
+        document.write(`
+          <tr>
+            <td><input type="text" id="sym${i}" value="${sym}" onchange="initRow(${i})"></td>
+            <td><select id="ind${i}"><option>MACD</option></select></td>
+            <td><select id="tf${i}">
+              <option>1m</option><option>3m</option><option>5m</option><option>15m</option>
+            </select></td>
+            <td id="price${i}" class="price">Loading...</td>
+            <td><button onclick="sendTelegramAlert(${i})">Send Alert</button></td>
+          </tr>
+        `);
+      });
+    </script>
   </table>
 
   <script>
-  const BOT_TOKEN = "8910250156 :AAFXETIQy7ILusg- -h5F E1PKg-dLFgS7hpg"; 
+  const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
   const CHAT_ID = "7287275405";
 
-  function sendTelegramAlert(msg) {
-    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}`);
+  // Telegram Alert Function
+  function sendTelegramAlert(i) {
+    let sym = document.getElementById(`sym${i}`).value;
+    let tf = document.getElementById(`tf${i}`).value;
+    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent("Alert: "+sym+" | TF: "+tf)}`);
   }
 
   // Sync with Python bot via Flask API
@@ -104,15 +88,57 @@
     // Sync with Python bot
     syncWithPython(sym, tf);
 
-    // Fetch price (Binance or Yahoo Finance depending on symbol)
-    if(sym === "NIFTY50" || sym === "SENSEX" || sym === "CRUDEOILM" || sym === "NATGASM") {
+    // Fetch price
+    if(["NIFTY50","SENSEX","CRUDEOILM","NATGASM","RELIANCE"].includes(sym)) {
       fetchStock(i, sym);
       intervals[i] = setInterval(() => fetchStock(i, sym), 5000);
     } else {
       fetchCrypto(i, sym, tf);
-      intervals[i] = setInterval(() => fetchCrypto(i, sym, tf), 3000);
+      intervals[i] = setInterval(() => fetchCrypto(i, sym, tf), 2000);
     }
   }
+
+  // Crypto Price Fetch
+  async function fetchCrypto(i, symbol, tf="1m") {
+    try {
+      const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+      const data = await res.json();
+      if(data.price) {
+        let price = parseFloat(data.price);
+        document.getElementById(`price${i}`).innerText = `$ ${price.toLocaleString()}`;
+      }
+    } catch(e) {
+      document.getElementById(`price${i}`).innerText = "Error";
+    }
+  }
+
+  // Stock Price Fetch (Yahoo Finance)
+  async function fetchStock(i, ticker) {
+    try {
+      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1m&range=1d`);
+      const data = await res.json();
+      let closes = data.chart.result[0].indicators.quote[0].close.filter(v => v != null);
+      let lastPrice = closes[closes.length-1];
+      if(lastPrice) {
+        document.getElementById(`price${i}`).innerText = `₹ ${lastPrice.toLocaleString('en-IN')}`;
+      } else {
+        document.getElementById(`price${i}`).innerText = "Market Closed";
+      }
+    } catch(e) {
+      document.getElementById(`price${i}`).innerText = "Error";
+    }
+  }
+
+  // Restore settings
+  window.onload = function() {
+    for(let i=0; i<symbols.length; i++) {
+      let savedSym = localStorage.getItem(`symbol${i}`);
+      let savedTf = localStorage.getItem(`timeframe${i}`);
+      if(savedSym) document.getElementById(`sym${i}`).value = savedSym;
+      if(savedTf) document.getElementById(`tf${i}`).value = savedTf;
+      initRow(i);
+    }
+  };
   </script>
 </body>
 </html>
