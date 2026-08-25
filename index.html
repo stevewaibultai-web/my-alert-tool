@@ -37,7 +37,7 @@
       <th>Alert</th>
     </tr>
     <script>
-      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","^NSEI","^BSESN","CRUDEOILM","NATGASM","RELIANCE"];
+      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","^NSEI","^BSESN","CRUDEOILM","NATGASM","RELIANCE.NS"];
       symbols.forEach((sym, i) => {
         document.write(`
           <tr>
@@ -84,7 +84,7 @@
 
     syncWithPython(sym, tf);
 
-    if(sym.startsWith("^") || ["RELIANCE","CRUDEOILM","NATGASM"].includes(sym)) {
+    if(sym.startsWith("^") || sym.includes(".NS") || sym.includes(".BO") || ["CRUDEOILM","NATGASM"].includes(sym)) {
       fetchStock(i, sym);
       intervals[i] = setInterval(() => fetchStock(i, sym), 5000);
     } else {
