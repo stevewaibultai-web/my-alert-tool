@@ -107,25 +107,25 @@
   }
 
   async function fetchStock(i, ticker) {
-    try {
-      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1m&range=1d`);
-      const data = await res.json();
-      let closes = data.chart.result[0].indicators.quote[0].close.filter(v => v != null);
-      let lastPrice = closes[closes.length-1];
-      let marketStatus = data.chart.result[0].meta.tradingPeriods ? "Open" : "Closed";
+  try {
+    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1m&range=1d`);
+    const data = await res.json();
+    let closes = data.chart.result[0].indicators.quote[0].close.filter(v => v != null);
+    let lastPrice = closes[closes.length-1];
+    let marketStatus = data.chart.result[0].meta.currentTradingPeriod ? "Open" : "Closed";
 
-      if(lastPrice) {
-        if(marketStatus === "Closed") {
-          document.getElementById(`price${i}`).innerText = `Market Closed | Last Price: ₹ ${lastPrice.toLocaleString('en-IN')}`;
-        } else {
-          document.getElementById(`price${i}`).innerText = `₹ ${lastPrice.toLocaleString('en-IN')}`;
-        }
+    if(lastPrice) {
+      if(marketStatus === "Closed") {
+        document.getElementById(`price${i}`).innerText = `Market Closed | Last Price: ₹ ${lastPrice.toLocaleString('en-IN')}`;
       } else {
-        document.getElementById(`price${i}`).innerText = "Error";
+        document.getElementById(`price${i}`).innerText = `₹ ${lastPrice.toLocaleString('en-IN')}`;
       }
-    } catch(e) {
+    } else {
       document.getElementById(`price${i}`).innerText = "Error";
     }
+  } catch(e) {
+    document.getElementById(`price${i}`).innerText = "Error";
+  }
   }
 
   window.onload = function() {
