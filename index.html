@@ -37,7 +37,7 @@
       <th>Alert</th>
     </tr>
     <script>
-      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","^NSEI","^BSESN","CRUDEOILM","NATGASM","RELIANCE.NS"];
+      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","^NSEI","^BSESN","RELIANCE.NS","TCS.NS","INFY.NS"];
       symbols.forEach((sym, i) => {
         document.write(`
           <tr>
@@ -84,7 +84,7 @@
 
     syncWithPython(sym, tf);
 
-    if(sym.startsWith("^") || sym.includes(".NS") || sym.includes(".BO") || ["CRUDEOILM","NATGASM"].includes(sym)) {
+    if(sym.startsWith("^") || sym.includes(".NS") || sym.includes(".BO")) {
       fetchStock(i, sym);
       intervals[i] = setInterval(() => fetchStock(i, sym), 5000);
     } else {
@@ -107,25 +107,25 @@
   }
 
   async function fetchStock(i, ticker) {
-  try {
-    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1m&range=1d`);
-    const data = await res.json();
-    let closes = data.chart.result[0].indicators.quote[0].close.filter(v => v != null);
-    let lastPrice = closes[closes.length-1];
-    let marketStatus = data.chart.result[0].meta.currentTradingPeriod ? "Open" : "Closed";
+    try {
+      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1m&range=1d`);
+      const data = await res.json();
+      let closes = data.chart.result[0].indicators.quote[0].close.filter(v => v != null);
+      let lastPrice = closes[closes.length-1];
+      let marketStatus = data.chart.result[0].meta.currentTradingPeriod ? "Open" : "Closed";
 
-    if(lastPrice) {
-      if(marketStatus === "Closed") {
-        document.getElementById(`price${i}`).innerText = `Market Closed | Last Price: ₹ ${lastPrice.toLocaleString('en-IN')}`;
+      if(lastPrice) {
+        if(marketStatus === "Closed") {
+          document.getElementById(`price${i}`).innerText = `Market Closed | Last Price: ₹ ${lastPrice.toLocaleString('en-IN')}`;
+        } else {
+          document.getElementById(`price${i}`).innerText = `₹ ${lastPrice.toLocaleString('en-IN')}`;
+        }
       } else {
-        document.getElementById(`price${i}`).innerText = `₹ ${lastPrice.toLocaleString('en-IN')}`;
+        document.getElementById(`price${i}`).innerText = "Error";
       }
-    } else {
+    } catch(e) {
       document.getElementById(`price${i}`).innerText = "Error";
     }
-  } catch(e) {
-    document.getElementById(`price${i}`).innerText = "Error";
-  }
   }
 
   window.onload = function() {
