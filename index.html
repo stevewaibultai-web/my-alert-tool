@@ -36,9 +36,8 @@
       <th>Current Price</th>
       <th>Alert</th>
     </tr>
-    <!-- 8 Symbols -->
     <script>
-      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","NIFTY50","SENSEX","CRUDEOILM","NATGASM","RELIANCE"];
+      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","^NSEI","^BSESN","CRUDEOILM","NATGASM","RELIANCE"];
       symbols.forEach((sym, i) => {
         document.write(`
           <tr>
@@ -59,14 +58,12 @@
   const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
   const CHAT_ID = "7287275405";
 
-  // Telegram Alert Function
   function sendTelegramAlert(i) {
     let sym = document.getElementById(`sym${i}`).value;
     let tf = document.getElementById(`tf${i}`).value;
     fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent("Alert: "+sym+" | TF: "+tf)}`);
   }
 
-  // Sync with Python bot via Flask API
   async function syncWithPython(symbol, timeframe) {
     await fetch("http://localhost:5000/update", {
       method: "POST",
@@ -85,11 +82,9 @@
 
     if(intervals[i]) clearInterval(intervals[i]);
 
-    // Sync with Python bot
     syncWithPython(sym, tf);
 
-    // Fetch price
-    if(["NIFTY50","SENSEX","CRUDEOILM","NATGASM","RELIANCE"].includes(sym)) {
+    if(sym.startsWith("^") || ["RELIANCE","CRUDEOILM","NATGASM"].includes(sym)) {
       fetchStock(i, sym);
       intervals[i] = setInterval(() => fetchStock(i, sym), 5000);
     } else {
@@ -98,7 +93,6 @@
     }
   }
 
-  // Crypto Price Fetch
   async function fetchCrypto(i, symbol, tf="1m") {
     try {
       const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
@@ -112,24 +106,28 @@
     }
   }
 
-  // Stock Price Fetch (Yahoo Finance)
   async function fetchStock(i, ticker) {
     try {
       const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1m&range=1d`);
       const data = await res.json();
       let closes = data.chart.result[0].indicators.quote[0].close.filter(v => v != null);
       let lastPrice = closes[closes.length-1];
+      let marketStatus = data.chart.result[0].meta.tradingPeriods ? "Open" : "Closed";
+
       if(lastPrice) {
-        document.getElementById(`price${i}`).innerText = `₹ ${lastPrice.toLocaleString('en-IN')}`;
+        if(marketStatus === "Closed") {
+          document.getElementById(`price${i}`).innerText = `Market Closed | Last Price: ₹ ${lastPrice.toLocaleString('en-IN')}`;
+        } else {
+          document.getElementById(`price${i}`).innerText = `₹ ${lastPrice.toLocaleString('en-IN')}`;
+        }
       } else {
-        document.getElementById(`price${i}`).innerText = "Market Closed";
+        document.getElementById(`price${i}`).innerText = "Error";
       }
     } catch(e) {
       document.getElementById(`price${i}`).innerText = "Error";
     }
   }
 
-  // Restore settings
   window.onload = function() {
     for(let i=0; i<symbols.length; i++) {
       let savedSym = localStorage.getItem(`symbol${i}`);
