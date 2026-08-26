@@ -47,7 +47,7 @@
               <option>1m</option><option>3m</option><option>5m</option><option>15m</option>
             </select></td>
             <td id="price${i}" class="price">Loading...</td>
-            <td><button onclick="sendTelegramAlert(${i})">Send Alert</button></td>
+            <td><button onclick="sendTelegramAlert(${i}, 'Manual Alert')">Send Alert</button></td>
           </tr>
         `);
       });
@@ -58,34 +58,47 @@
   const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
   const CHAT_ID = "7287275405";
 
-  function sendTelegramAlert(i) {
+  function sendTelegramAlert(i, msg="Alert") {
     let sym = document.getElementById(`sym${i}`).value;
     let tf = document.getElementById(`tf${i}`).value;
-    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent("Alert: "+sym+" | TF: "+tf)}`);
+    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg+": "+sym+" | TF: "+tf)}`);
   }
 
-  async function syncWithPython(symbol, timeframe) {
-    await fetch("http://localhost:5000/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol, timeframe })
-    });
+  async function fetchCandles(symbol, tf="1m") {
+    const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${tf}&limit=100`);
+    const data = await res.json();
+    return data.map(c => parseFloat(c[4])); // closing prices
   }
 
-  let intervals = {};
-  function initRow(i) {
-    let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
-    let tf = document.getElementById(`tf${i}`).value;
+  function EMA(values, period) {
+    let k = 2/(period+1);
+    let emaArray = [];
+    emaArray[0] = values[0];
+    for(let i=1;i<values.length;i++){
+      emaArray[i] = values[i]*k + emaArray[i-1]*(1-k);
+    }
+    return emaArray;
+  }
 
-    localStorage.setItem(`symbol${i}`, sym);
-    localStorage.setItem(`timeframe${i}`, tf);
+  async function checkMACD(i, symbol, tf="1m") {
+    let closes = await fetchCandles(symbol, tf);
+    if(closes.length < 30) return;
 
-    if(intervals[i]) clearInterval(intervals[i]);
+    let ema12 = EMA(closes, 12);
+    let ema26 = EMA(closes, 26);
+    let macdLine = ema12.map((v, idx) => v - ema26[idx]);
+    let signalLine = EMA(macdLine, 9);
 
-    syncWithPython(sym, tf);
+    let lastMacd = macdLine[macdLine.length-1];
+    let prevMacd = macdLine[macdLine.length-2];
+    let lastSignal = signalLine[signalLine.length-1];
+    let prevSignal = signalLine[signalLine.length-2];
 
-    fetchCrypto(i, sym, tf);
-    intervals[i] = setInterval(() => fetchCrypto(i, sym, tf), 2000);
+    if(prevMacd < prevSignal && lastMacd > lastSignal) {
+      sendTelegramAlert(i, "MACD Bullish Crossover");
+    } else if(prevMacd > prevSignal && lastMacd < lastSignal) {
+      sendTelegramAlert(i, "MACD Bearish Crossover");
+    }
   }
 
   async function fetchCrypto(i, symbol, tf="1m") {
@@ -99,6 +112,23 @@
     } catch(e) {
       document.getElementById(`price${i}`).innerText = "Error";
     }
+  }
+
+  let intervals = {};
+  function initRow(i) {
+    let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
+    let tf = document.getElementById(`tf${i}`).value;
+
+    localStorage.setItem(`symbol${i}`, sym);
+    localStorage.setItem(`timeframe${i}`, tf);
+
+    if(intervals[i]) clearInterval(intervals[i]);
+
+    fetchCrypto(i, sym, tf);
+    intervals[i] = setInterval(() => {
+      fetchCrypto(i, sym, tf);
+      checkMACD(i, sym, tf);
+    }, 5000);
   }
 
   window.onload = function() {
