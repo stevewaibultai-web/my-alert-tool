@@ -37,7 +37,7 @@
       <th>Alert</th>
     </tr>
     <script>
-      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","^NSEI","^BSESN","RELIANCE.NS","TCS.NS","INFY.NS"];
+      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT"];
       symbols.forEach((sym, i) => {
         document.write(`
           <tr>
@@ -84,13 +84,8 @@
 
     syncWithPython(sym, tf);
 
-    if(sym.startsWith("^") || sym.includes(".NS") || sym.includes(".BO")) {
-      fetchStock(i, sym);
-      intervals[i] = setInterval(() => fetchStock(i, sym), 5000);
-    } else {
-      fetchCrypto(i, sym, tf);
-      intervals[i] = setInterval(() => fetchCrypto(i, sym, tf), 2000);
-    }
+    fetchCrypto(i, sym, tf);
+    intervals[i] = setInterval(() => fetchCrypto(i, sym, tf), 2000);
   }
 
   async function fetchCrypto(i, symbol, tf="1m") {
@@ -100,28 +95,6 @@
       if(data.price) {
         let price = parseFloat(data.price);
         document.getElementById(`price${i}`).innerText = `$ ${price.toLocaleString()}`;
-      }
-    } catch(e) {
-      document.getElementById(`price${i}`).innerText = "Error";
-    }
-  }
-
-  async function fetchStock(i, ticker) {
-    try {
-      const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1m&range=1d`);
-      const data = await res.json();
-      let closes = data.chart.result[0].indicators.quote[0].close.filter(v => v != null);
-      let lastPrice = closes[closes.length-1];
-      let marketStatus = data.chart.result[0].meta.currentTradingPeriod ? "Open" : "Closed";
-
-      if(lastPrice) {
-        if(marketStatus === "Closed") {
-          document.getElementById(`price${i}`).innerText = `Market Closed | Last Price: ₹ ${lastPrice.toLocaleString('en-IN')}`;
-        } else {
-          document.getElementById(`price${i}`).innerText = `₹ ${lastPrice.toLocaleString('en-IN')}`;
-        }
-      } else {
-        document.getElementById(`price${i}`).innerText = "Error";
       }
     } catch(e) {
       document.getElementById(`price${i}`).innerText = "Error";
