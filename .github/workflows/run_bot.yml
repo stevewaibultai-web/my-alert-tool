@@ -2,9 +2,8 @@ name: Trading Bot Automation
 
 on:
   schedule:
-    # এটি প্রতি ৫ মিনিট পর পর ব্যাকগ্রাউন্ডে অটোমেটিক রান হবে
     - cron: '*/5 * * * *'
-  workflow_dispatch: # এটি আপনাকে ম্যানুয়ালি রান করার বোতাম দেবে
+  workflow_dispatch:
 
 jobs:
   run-trading-bot:
