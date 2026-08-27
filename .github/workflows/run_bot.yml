@@ -1,0 +1,28 @@
+name: Trading Bot Automation
+
+on:
+  schedule:
+    # এটি প্রতি ৫ মিনিট পর পর ব্যাকগ্রাউন্ডে অটোমেটিক রান হবে
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # এটি আপনাকে ম্যানুয়ালি রান করার বোতাম দেবে
+
+jobs:
+  run-trading-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Trading Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Execute Python Bot
+        run: python bot.py
+        
