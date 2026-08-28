@@ -1,109 +1,127 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
   <title>Crypto Trading Dashboard</title>
-  <style>
-    body { font-family: 'Segoe UI', sans-serif; background:#0b1426; color:#fff; margin:0; padding:20px; }
-    h2 { text-align:center; color:#38a1f3; }
-    table { width:100%; border-collapse:collapse; margin-bottom:20px; }
-    th, td { border:1px solid #1c3563; padding:8px; text-align:center; }
-    th { background:#132240; color:#8fa0c2; }
-    .bullish { color:#0ecb81; font-weight:bold; }
-    .bearish { color:#ff4d4d; font-weight:bold; }
-    .config-box { background:#132240; padding:10px; border-radius:6px; text-align:center; margin-bottom:20px; }
-    button { background:#0088cc; color:#fff; border:none; padding:8px; border-radius:6px; cursor:pointer; }
-    #highProb { background:#132240; padding:10px; border-radius:6px; }
-  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <h2>Crypto Trading Dashboard</h2>
-  <div class="config-box">
-    <button onclick="testTelegram()">Test Connection</button>
-    <div id="status"></div>
-  </div>
 
+  <!-- Timeframe Dropdown -->
+  <select id="tfSelect" onchange="reloadSymbols()">
+    <option value="1m">1m</option>
+    <option value="5m">5m</option>
+    <option value="15m" selected>15m</option>
+    <option value="1h">1H</option>
+    <option value="1d">1D</option>
+    <option value="1w">1W</option>
+  </select>
+
+  <!-- Search Engine Button -->
+  <button onclick="loadBinanceSymbols()">Load Binance Futures Symbols</button>
+
+  <!-- Table -->
   <table id="cryptoTable">
     <tr>
       <th>Symbol</th>
       <th>Timeframe</th>
       <th>Price</th>
+      <th>MACD Chart</th>
       <th>Signal</th>
       <th>Alert</th>
     </tr>
   </table>
 
+  <!-- High Probability Box -->
   <div id="highProb">
     <h3>🔥 High‑Probability Trades</h3>
     <ul id="hpList"></ul>
   </div>
 
 <script>
-const BOT_TOKEN = "8910250156 :AAFXETIQy7ILusg- -h5F E1PKg-dLFgS7hpg";
-const CHAT_ID = "7287275405";
+const BOT_TOKEN="8910250156 :AAFXETIQy7ILusg- -h5F E1PKg-dLFgS7hpg";
+const CHAT_ID="7287275405";
 
-async function fetchFuturesSymbols(){
-  const res = await fetch("https://fapi.binance.com/fapi/v1/exchangeInfo");
-  const data = await res.json();
-  return data.symbols.map(s=>s.symbol);
+// Binance Futures symbols
+async function loadBinanceSymbols(){
+  const res=await fetch("https://fapi.binance.com/fapi/v1/exchangeInfo");
+  const data=await res.json();
+  let symbols=data.symbols.map(s=>s.symbol);
+  symbols.slice(0,10).forEach(sym=>updateRow(sym));
 }
 
-async function fetchCandles(symbol, tf="15m"){
-  const res = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=${tf}&limit=100`);
-  const data = await res.json();
-  return data.map(c=>parseFloat(c[4]));
-}
-
+// MACD calculation
 function EMA(values, period){
   let k=2/(period+1), ema=[values[0]];
   for(let i=1;i<values.length;i++){ ema[i]=values[i]*k+ema[i-1]*(1-k); }
   return ema;
 }
-
-async function checkMACD(symbol, tf="15m"){
-  let closes=await fetchCandles(symbol, tf);
-  if(closes.length<30) return null;
+function calcMACD(closes){
   let ema12=EMA(closes,12), ema26=EMA(closes,26);
-  let macd=ema12.map((v,i)=>v-ema26[i]);
-  let signal=EMA(macd,9);
-  let lastMacd=macd.at(-1), prevMacd=macd.at(-2);
-  let lastSig=signal.at(-1), prevSig=signal.at(-2);
-  if(prevMacd<prevSig && lastMacd>lastSig) return "bullish";
-  if(prevMacd>prevSig && lastMacd<lastSig) return "bearish";
-  return null;
+  return ema12.map((v,i)=>v-ema26[i]);
+}
+function calcSignal(macd){ return EMA(macd,9); }
+
+// Mini chart rendering
+function renderMiniChart(canvasId, closes){
+  const ctx=document.getElementById(canvasId).getContext('2d');
+  let macd=calcMACD(closes), signal=calcSignal(macd);
+  new Chart(ctx,{type:'line',data:{
+    labels:[...Array(closes.length).keys()],
+    datasets:[
+      {label:'MACD',data:macd,borderColor:'green'},
+      {label:'Signal',data:signal,borderColor:'yellow'}
+    ]}});
 }
 
+// Telegram alert
 function sendTelegram(msg){
-  fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}`);
+  fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,{
+    method:"POST",headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({chat_id:CHAT_ID,text:msg})
+  });
 }
 
+// Update row
 async function updateRow(symbol){
-  const tf="15m";
+  const tf=document.getElementById("tfSelect").value;
   const priceRes=await fetch(`https://fapi.binance.com/fapi/v1/ticker/price?symbol=${symbol}`);
   const priceData=await priceRes.json();
   const price=parseFloat(priceData.price).toFixed(4);
-  const signal=await checkMACD(symbol, tf);
+
   let row=document.getElementById(symbol);
   if(!row){
     row=document.createElement("tr");
     row.id=symbol;
-    row.innerHTML=`<td>${symbol}</td><td>${tf}</td><td id="p${symbol}"></td><td id="s${symbol}"></td><td><button onclick="manualAlert('${symbol}')">Send Alert</button></td>`;
+    row.innerHTML=`<td>${symbol}</td><td>${tf}</td><td>$${price}</td>
+    <td><canvas id="c${symbol}" width="100" height="40"></canvas></td>
+    <td id="s${symbol}"></td>
+    <td><button onclick="manualAlert('${symbol}')">Send Alert</button></td>`;
     document.getElementById("cryptoTable").appendChild(row);
   }
-  document.getElementById("p"+symbol).innerText="$ "+price;
-  if(signal==="bullish"){
-    document.getElementById("s"+symbol).innerHTML="⬆️ Signal "+tf;
+
+  // MACD signal detect
+  const res=await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=${tf}&limit=100`);
+  const data=await res.json();
+  let closes=data.map(c=>parseFloat(c[4]));
+  renderMiniChart("c"+symbol,closes);
+
+  let macd=calcMACD(closes), signal=calcSignal(macd);
+  let lastMacd=macd.at(-1), prevMacd=macd.at(-2);
+  let lastSig=signal.at(-1), prevSig=signal.at(-2);
+
+  if(prevMacd<prevSig && lastMacd>lastSig){
+    document.getElementById("s"+symbol).innerText="⬆️ Signal "+tf;
     row.className="bullish";
     sendTelegram(`⬆️ Signal ${tf} : ${symbol}`);
     addHighProb(symbol,"Bullish");
-  } else if(signal==="bearish"){
-    document.getElementById("s"+symbol).innerHTML="⬇️ Signal "+tf;
+  } else if(prevMacd>prevSig && lastMacd<lastSig){
+    document.getElementById("s"+symbol).innerText="⬇️ Signal "+tf;
     row.className="bearish";
     sendTelegram(`⬇️ Signal ${tf} : ${symbol}`);
     addHighProb(symbol,"Bearish");
   } else {
-    document.getElementById("s"+symbol).innerHTML="No Signal";
-    row.className="";
+    document.getElementById("s"+symbol).innerText="No Signal";
   }
 }
 
@@ -115,18 +133,7 @@ function addHighProb(symbol,dir){
   sendTelegram(`🔥 High‑Probability Trade\n${symbol} ${dir}`);
 }
 
-function manualAlert(symbol){
-  sendTelegram("Manual Alert: "+symbol);
-}
-
-async function init(){
-  let symbols=await fetchFuturesSymbols();
-  symbols.slice(0,10).forEach(sym=>{
-    updateRow(sym);
-    setInterval(()=>updateRow(sym),10000);
-  });
-}
-init();
+function manualAlert(symbol){ sendTelegram("Manual Alert: "+symbol); }
 </script>
 </body>
 </html>
