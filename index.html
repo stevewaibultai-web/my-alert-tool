@@ -37,7 +37,7 @@
       <th>Alert</th>
     </tr>
     <script>
-      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","MATICUSDT","ACEUSDT","TUTUSDT","STXUSDT","FFUSDT"];
+      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","MATICUSDT","ACEUSDT","TUTUSDT","STXUSDT","FFUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","MATICUSDT"];
       symbols.forEach((sym, i) => {
         document.write(`
           <tr>
@@ -143,39 +143,4 @@
   </script>
 </body>
 </html>
-<script>
-async function checkHighProbabilityAll(){
-  let tf = document.getElementById("tfSelect").value;
-  document.getElementById("hpList").innerHTML=""; // clear old list
 
-  for(let i=0; i<symbols.length; i++){
-    let sym=document.getElementById(`sym${i}`).value;
-
-    // Weekly bias check
-    let weekly=await checkMACD(i,sym,"1w");
-    // Selected timeframe check
-    let short=await checkMACD(i,sym,tf);
-
-    // Direct decision: no dependency on normal signal
-    if(weekly==="bullish" && short==="bullish"){
-      addHighProb(sym,"Bullish");
-      sendTelegramAlert(i,`🔥 High‑Probability Trade ⬆️ ${sym} (${tf} + Weekly Bullish Bias)`);
-    }
-    if(weekly==="bearish" && short==="bearish"){
-      addHighProb(sym,"Bearish");
-      sendTelegramAlert(i,`🔥 High‑Probability Trade ⬇️ ${sym} (${tf} + Weekly Bearish Bias)`);
-    }
-  }
-}
-
-function addHighProb(symbol,dir){
-  let li=document.createElement("li");
-  li.innerText=`${symbol} ${dir}`;
-  li.className=(dir==="Bullish"?"bullish":"bearish");
-  document.getElementById("hpList").appendChild(li);
-}
-
-function reloadSymbols(){
-  checkHighProbabilityAll();
-}
-      </script>
