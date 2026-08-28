@@ -16,8 +16,6 @@
     .config-box { background: #132240; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
     button { background: #0088cc; font-weight: bold; cursor: pointer; border: none; padding: 10px; border-radius: 6px; width: 100%; }
     .status-text { font-size: 12px; margin-top: 5px; color: #0ecb81; }
-    .bullish { color:#0ecb81; font-weight:bold; }
-    .bearish { color:#ff4d4d; font-weight:bold; }
   </style>
 </head>
 <body>
@@ -39,7 +37,7 @@
       <th>Alert</th>
     </tr>
     <script>
-      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","MATICUSDT"];
+      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","MATICUSDT","ACEUSDT","TUTUSDT","STXUSDT","FFUSDT"];
       symbols.forEach((sym, i) => {
         document.write(`
           <tr>
@@ -56,124 +54,92 @@
     </script>
   </table>
 
-  <!-- Timeframe Dropdown -->
-  <div style="margin-top:20px; text-align:center;">
-    <label for="tfSelect">Select Timeframe:</label>
-    <select id="tfSelect" onchange="reloadSymbols()">
-      <option value="1m">1m</option>
-      <option value="3m">3m</option>
-      <option value="5m">5m</option>
-      <option value="15m" selected>15m</option>
-      <option value="1h">1H</option>
-      <option value="1d">1D</option>
-      <option value="1w">1W</option>
-    </select>
-  </div>
+  <script>
+  const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
+  const CHAT_ID = "7287275405";
 
-  <!-- High Probability Box -->
-  <div id="highProb" style="margin-top:30px; background:#132240; padding:10px; border-radius:6px;">
-    <h3>🔥 High‑Probability Trades</h3>
-    <ul id="hpList"></ul>
-  </div>
-
-<script>
-const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
-const CHAT_ID = "7287275405";
-
-function sendTelegramAlert(i, msg="Alert") {
-  let sym = document.getElementById(`sym${i}`).value;
-  let tf = document.getElementById(`tf${i}`).value;
-  fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,{
-    method:"POST",
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({chat_id:CHAT_ID,text:msg+": "+sym+" | TF: "+tf})
-  });
-}
-
-async function fetchCandles(symbol, tf="1m") {
-  const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${tf}&limit=100`);
-  const data = await res.json();
-  return data.map(c => parseFloat(c[4])); 
-}
-
-function EMA(values, period) {
-  let k = 2/(period+1);
-  let emaArray = [];
-  emaArray[0] = values[0];
-  for(let i=1;i<values.length;i++){
-    emaArray[i] = values[i]*k + emaArray[i-1]*(1-k);
+  function sendTelegramAlert(i, msg="Alert") {
+    let sym = document.getElementById(`sym${i}`).value;
+    let tf = document.getElementById(`tf${i}`).value;
+    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg+": "+sym+" | TF: "+tf)}`);
   }
-  return emaArray;
-}
 
-async function checkMACD(i, symbol, tf="1m") {
-  let closes = await fetchCandles(symbol, tf);
-  if(closes.length < 30) return null;
-
-  let ema12 = EMA(closes, 12);
-  let ema26 = EMA(closes, 26);
-  let macdLine = ema12.map((v, idx) => v - ema26[idx]);
-  let signalLine = EMA(macdLine, 9);
-
-  let lastMacd = macdLine[macdLine.length-1];
-  let prevMacd = macdLine[macdLine.length-2];
-  let lastSignal = signalLine[signalLine.length-1];
-  let prevSignal = signalLine[signalLine.length-2];
-
-  if(prevMacd < prevSignal && lastMacd > lastSignal) {
-    sendTelegramAlert(i, "MACD Bullish Crossover");
-    return "bullish";
-  } else if(prevMacd > prevSignal && lastMacd < lastSignal) {
-    sendTelegramAlert(i, "MACD Bearish Crossover");
-    return "bearish";
-  }
-  return null;
-}
-
-async function fetchCrypto(i, symbol, tf="1m") {
-  try {
-    const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+  async function fetchCandles(symbol, tf="1m") {
+    const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${tf}&limit=100`);
     const data = await res.json();
-    if(data.price) {
-      let price = parseFloat(data.price);
-      document.getElementById(`price${i}`).innerText = `$ ${price.toLocaleString()}`;
+    return data.map(c => parseFloat(c[4])); // closing prices
+  }
+
+  function EMA(values, period) {
+    let k = 2/(period+1);
+    let emaArray = [];
+    emaArray[0] = values[0];
+    for(let i=1;i<values.length;i++){
+      emaArray[i] = values[i]*k + emaArray[i-1]*(1-k);
     }
-  } catch(e) {
-    document.getElementById(`price${i}`).innerText = "Error";
+    return emaArray;
   }
-}
 
-let intervals = {};
-function initRow(i) {
-  let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
-  let tf = document.getElementById(`tf${i}`).value;
+  async function checkMACD(i, symbol, tf="1m") {
+    let closes = await fetchCandles(symbol, tf);
+    if(closes.length < 30) return;
 
-  localStorage.setItem(`symbol${i}`, sym);
-  localStorage.setItem(`timeframe${i}`, tf);
+    let ema12 = EMA(closes, 12);
+    let ema26 = EMA(closes, 26);
+    let macdLine = ema12.map((v, idx) => v - ema26[idx]);
+    let signalLine = EMA(macdLine, 9);
 
-  if(intervals[i]) clearInterval(intervals[i]);
+    let lastMacd = macdLine[macdLine.length-1];
+    let prevMacd = macdLine[macdLine.length-2];
+    let lastSignal = signalLine[signalLine.length-1];
+    let prevSignal = signalLine[signalLine.length-2];
 
-  fetchCrypto(i, sym, tf);
-  intervals[i] = setInterval(() => {
+    if(prevMacd < prevSignal && lastMacd > lastSignal) {
+      sendTelegramAlert(i, "MACD Bullish Crossover");
+    } else if(prevMacd > prevSignal && lastMacd < lastSignal) {
+      sendTelegramAlert(i, "MACD Bearish Crossover");
+    }
+  }
+
+  async function fetchCrypto(i, symbol, tf="1m") {
+    try {
+      const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+      const data = await res.json();
+      if(data.price) {
+        let price = parseFloat(data.price);
+        document.getElementById(`price${i}`).innerText = `$ ${price.toLocaleString()}`;
+      }
+    } catch(e) {
+      document.getElementById(`price${i}`).innerText = "Error";
+    }
+  }
+
+  let intervals = {};
+  function initRow(i) {
+    let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
+    let tf = document.getElementById(`tf${i}`).value;
+
+    localStorage.setItem(`symbol${i}`, sym);
+    localStorage.setItem(`timeframe${i}`, tf);
+
+    if(intervals[i]) clearInterval(intervals[i]);
+
     fetchCrypto(i, sym, tf);
-    checkMACD(i, sym, tf);
-    checkHighProbability(sym);
-  }, 5000);
-}
-
-async function checkHighProbability(symbol){
-  let weekly=await checkMACD(0,symbol,"1w");
-  let short=await checkMACD(0,symbol,document.getElementById("tfSelect").value);
-
-  if(weekly==="bullish" && short==="bullish"){
-    addHighProb(symbol,"Bullish");
-    sendTelegramAlert(0,`🔥 High‑Probability Trade ⬆️ ${symbol} (${document.getElementById("tfSelect").value} + Weekly Bullish Bias)`);
+    intervals[i] = setInterval(() => {
+      fetchCrypto(i, sym, tf);
+      checkMACD(i, sym, tf);
+    }, 5000);
   }
-  if(weekly==="bearish" && short==="bearish"){
-    addHighProb(symbol,"Bearish");
-    sendTelegramAlert(0,`🔥 High‑Probability Trade ⬇️ ${symbol} (${document.getElementById("tfSelect").value} + Weekly Bearish Bias)`);
-  }
-}
 
-function addHighProb(symbol,dir){
-  let li
+  window.onload = function() {
+    for(let i=0; i<symbols.length; i++) {
+      let savedSym = localStorage.getItem(`symbol${i}`);
+      let savedTf = localStorage.getItem(`timeframe${i}`);
+      if(savedSym) document.getElementById(`sym${i}`).value = savedSym;
+      if(savedTf) document.getElementById(`tf${i}`).value = savedTf;
+      initRow(i);
+    }
+  };
+  </script>
+</body>
+</html>
