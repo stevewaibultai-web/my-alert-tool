@@ -156,7 +156,7 @@ async function checkHighProbabilityAll(){
     // Selected timeframe check
     let short=await checkMACD(i,sym,tf);
 
-    // Direct decision without waiting for normal signal
+    // Direct decision: no dependency on normal signal
     if(weekly==="bullish" && short==="bullish"){
       addHighProb(sym,"Bullish");
       sendTelegramAlert(i,`🔥 High‑Probability Trade ⬆️ ${sym} (${tf} + Weekly Bullish Bias)`);
@@ -178,4 +178,4 @@ function addHighProb(symbol,dir){
 function reloadSymbols(){
   checkHighProbabilityAll();
 }
-</script>
+      </script>
