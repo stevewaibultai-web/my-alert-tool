@@ -143,38 +143,28 @@
   </script>
 </body>
 </html>
-<!-- Timeframe Dropdown -->
-<div style="margin-top:20px; text-align:center;">
-  <label for="tfSelect">Select Timeframe:</label>
-  <select id="tfSelect" onchange="reloadSymbols()">
-    <option value="1m">1m</option>
-    <option value="3m">3m</option>
-    <option value="5m">5m</option>
-    <option value="15m" selected>15m</option>
-    <option value="1h">1H</option>
-    <option value="1d">1D</option>
-    <option value="1w">1W</option>
-  </select>
-</div>
-
-<!-- High Probability Box -->
-<div id="highProb" style="margin-top:30px; background:#132240; padding:10px; border-radius:6px;">
-  <h3>🔥 High‑Probability Trades</h3>
-  <ul id="hpList"></ul>
-</div>
-
 <script>
-async function checkHighProbability(symbol){
-  let weekly=await checkMACD(0,symbol,"1w");
-  let short=await checkMACD(0,symbol,document.getElementById("tfSelect").value);
+async function checkHighProbabilityAll(){
+  let tf = document.getElementById("tfSelect").value;
+  document.getElementById("hpList").innerHTML=""; // clear old list
 
-  if(weekly==="bullish" && short==="bullish"){
-    addHighProb(symbol,"Bullish");
-    sendTelegramAlert(0,`🔥 High‑Probability Trade ⬆️ ${symbol} (${document.getElementById("tfSelect").value} + Weekly Bullish Bias)`);
-  }
-  if(weekly==="bearish" && short==="bearish"){
-    addHighProb(symbol,"Bearish");
-    sendTelegramAlert(0,`🔥 High‑Probability Trade ⬇️ ${symbol} (${document.getElementById("tfSelect").value} + Weekly Bearish Bias)`);
+  for(let i=0; i<symbols.length; i++){
+    let sym=document.getElementById(`sym${i}`).value;
+
+    // Weekly bias check
+    let weekly=await checkMACD(i,sym,"1w");
+    // Selected timeframe check
+    let short=await checkMACD(i,sym,tf);
+
+    // Direct decision without waiting for normal signal
+    if(weekly==="bullish" && short==="bullish"){
+      addHighProb(sym,"Bullish");
+      sendTelegramAlert(i,`🔥 High‑Probability Trade ⬆️ ${sym} (${tf} + Weekly Bullish Bias)`);
+    }
+    if(weekly==="bearish" && short==="bearish"){
+      addHighProb(sym,"Bearish");
+      sendTelegramAlert(i,`🔥 High‑Probability Trade ⬇️ ${sym} (${tf} + Weekly Bearish Bias)`);
+    }
   }
 }
 
@@ -186,9 +176,6 @@ function addHighProb(symbol,dir){
 }
 
 function reloadSymbols(){
-  for(let i=0; i<symbols.length; i++){
-    let sym=document.getElementById(`sym${i}`).value;
-    checkHighProbability(sym);
-  }
+  checkHighProbabilityAll();
 }
 </script>
