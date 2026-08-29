@@ -32,7 +32,7 @@ def send_alert(message):
     requests.post(url, data={"chat_id": CHAT_ID, "text": message})
 
 # Fetch Data from Binance
-def fetch_data(symbol="BTCUSDT", interval="1m", limit=100):
+def fetch_data(symbol="NILUSDT", "TUTUSDT", "STXUSDT", "COOKIEUSDT", "THEUSDT", "XAIUSDT", interval="1m", limit=100):
     params = {"symbol": symbol, "interval": interval, "limit": limit}
     res = requests.get(BINANCE_URL, params=params).json()
     closes = [float(candle[4]) for candle in res]
