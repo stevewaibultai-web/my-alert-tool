@@ -62,5 +62,5 @@ def run_bot(symbols, interval="1m"):
 
 # Run Bot
 if __name__ == "__main__":
-    symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT"]  # add more symbols here
-    run_bot(symbols, "5m")  # change timeframe here
+    symbols = ["NILUSDT", "TUTUSDT", "STXUSDT", "COOKIEUSDT", "THEUSDT", "XAIUSDT"]  # add more symbols here
+    run_bot(symbols, "15m")  # change timeframe here
