@@ -38,22 +38,23 @@ def fetch_data(symbol="BTCUSDT", interval="1m", limit=100):
     closes = [float(candle[4]) for candle in res]
     return closes
 
-# Main Loop
-def run_bot(symbol="BTCUSDT", interval="1m"):
-    last_signal = None
+# Main Loop for multiple symbols
+def run_bot(symbols, interval="1m"):
+    last_signals = {sym: None for sym in symbols}
     while True:
         try:
-            closes = fetch_data(symbol, interval)
-            macd, signal = calculate_macd(closes)
-            
-            if macd[-1] > signal[-1] and last_signal != "bullish":
-                send_alert(f"📈 Bullish MACD Crossover on {symbol} ({interval}) | Price: {closes[-1]}")
-                last_signal = "bullish"
-            
-            elif macd[-1] < signal[-1] and last_signal != "bearish":
-                send_alert(f"📉 Bearish MACD Crossover on {symbol} ({interval}) | Price: {closes[-1]}")
-                last_signal = "bearish"
-            
+            for sym in symbols:
+                closes = fetch_data(sym, interval)
+                macd, signal = calculate_macd(closes)
+
+                if macd[-1] > signal[-1] and last_signals[sym] != "bullish":
+                    send_alert(f"📈 Bullish MACD Crossover on {sym} ({interval}) | Price: {closes[-1]}")
+                    last_signals[sym] = "bullish"
+
+                elif macd[-1] < signal[-1] and last_signals[sym] != "bearish":
+                    send_alert(f"📉 Bearish MACD Crossover on {sym} ({interval}) | Price: {closes[-1]}")
+                    last_signals[sym] = "bearish"
+
             time.sleep(30)  # checks every 30 seconds
         except Exception as e:
             print("Error:", e)
@@ -61,4 +62,5 @@ def run_bot(symbol="BTCUSDT", interval="1m"):
 
 # Run Bot
 if __name__ == "__main__":
-    run_bot("BTCUSDT", "1m")  # customize symbol and timeframe here
+    symbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT"]  # add more symbols here
+    run_bot(symbols, "5m")  # change timeframe here
