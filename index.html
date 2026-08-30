@@ -31,16 +31,21 @@
   <table>
     <tr>
       <th>Symbol</th>
+      <th>Indicator</th>
       <th>Timeframe</th>
       <th>Current Price</th>
       <th>Alert</th>
     </tr>
     <script>
-      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT"];
+      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","MATICUSDT","ACEUSDT","TUTUSDT","STXUSDT","FFUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","MATICUSDT"];
       symbols.forEach((sym, i) => {
         document.write(`
           <tr>
             <td><input type="text" id="sym${i}" value="${sym}" onchange="initRow(${i})"></td>
+            <td><select id="ind${i}">
+              <option>MACD</option>
+              <option>SMA Alerts</option>
+            </select></td>
             <td><select id="tf${i}">
               <option>1m</option><option>3m</option><option>5m</option><option>15m</option>
             </select></td>
@@ -56,16 +61,29 @@
   const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
   const CHAT_ID = "7287275405";
 
-  function sendTelegramAlert(i, msg="Alert") {
+  function sendTelegramAlert(i, msg="Alert", tf="1m") {
     let sym = document.getElementById(`sym${i}`).value;
-    let tf = document.getElementById(`tf${i}`).value;
-    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg+": "+sym+" | TF: "+tf)}`);
+    let timeframe = document.getElementById(`tf${i}`).value;
+    let now = new Date();
+    let timeStr = now.toLocaleTimeString("en-IN", { hour12: false });
+    let fullMsg = `${msg}: ${sym} | TF: ${timeframe} | Candle Close: ${timeStr}`;
+    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(fullMsg)}`);
   }
 
   async function fetchCandles(symbol, tf="1m") {
     const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${tf}&limit=200`);
     const data = await res.json();
     return data.map(c => parseFloat(c[4])); // closing prices
+  }
+
+  function EMA(values, period) {
+    let k = 2/(period+1);
+    let emaArray = [];
+    emaArray[0] = values[0];
+    for(let i=1;i<values.length;i++){
+      emaArray[i] = values[i]*k + emaArray[i-1]*(1-k);
+    }
+    return emaArray;
   }
 
   function SMA(values, period) {
@@ -81,7 +99,28 @@
     return result;
   }
 
-  async function checkSignals(i, symbol, tf="1m") {
+  async function checkMACD(i, symbol, tf="1m") {
+    let closes = await fetchCandles(symbol, tf);
+    if(closes.length < 30) return;
+
+    let ema12 = EMA(closes, 12);
+    let ema26 = EMA(closes, 26);
+    let macdLine = ema12.map((v, idx) => v - ema26[idx]);
+    let signalLine = EMA(macdLine, 9);
+
+    let lastMacd = macdLine[macdLine.length-1];
+    let prevMacd = macdLine[macdLine.length-2];
+    let lastSignal = signalLine[signalLine.length-1];
+    let prevSignal = signalLine[signalLine.length-2];
+
+    if(prevMacd < prevSignal && lastMacd > lastSignal) {
+      sendTelegramAlert(i, "MACD Bullish Crossover", tf);
+    } else if(prevMacd > prevSignal && lastMacd < lastSignal) {
+      sendTelegramAlert(i, "MACD Bearish Crossover", tf);
+    }
+  }
+
+  async function checkSMAAlerts(i, symbol, tf="1m") {
     let closes = await fetchCandles(symbol, tf);
     if(closes.length < 900) return;
 
@@ -95,23 +134,23 @@
 
     // Blue vs Orange → Confirmation
     if((prevBlue < prevOrange && lastBlue > lastOrange) || (prevBlue > prevOrange && lastBlue < lastOrange)) {
-      let msg = "Confirmation Alert: "+symbol+" | Blue crossed Orange";
+      let msg = "Confirmation Alert | Blue crossed Orange";
       if(Math.abs(lastOrange - lastPurple) < 0.00001) {
         msg += " | Orange merged with Purple";
       }
-      sendTelegramAlert(i, msg);
+      sendTelegramAlert(i, msg, tf);
     }
 
     // Orange vs Purple → Long Trend
     if((prevOrange < prevPurple && lastOrange > lastPurple) || (prevOrange > prevPurple && lastOrange < lastPurple)) {
-      sendTelegramAlert(i, "Long Trend Alert: "+symbol+" | Orange crossed Purple");
+      sendTelegramAlert(i, "Long Trend Alert | Orange crossed Purple", tf);
     }
 
     // Blue crosses both → Strong Trend
     let blueCrossOrange = (prevBlue < prevOrange && lastBlue > lastOrange) || (prevBlue > prevOrange && lastBlue < lastOrange);
     let blueCrossPurple = (prevBlue < prevPurple && lastBlue > lastPurple) || (prevBlue > prevPurple && lastBlue < lastPurple);
     if(blueCrossOrange && blueCrossPurple) {
-      sendTelegramAlert(i, "Strong Trend Alert: "+symbol+" | Blue crossed Orange & Purple");
+      sendTelegramAlert(i, "Strong Trend Alert | Blue crossed Orange & Purple", tf);
     }
   }
 
@@ -131,29 +170,4 @@
   let intervals = {};
   function initRow(i) {
     let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
-    let tf = document.getElementById(`tf${i}`).value;
-
-    localStorage.setItem(`symbol${i}`, sym);
-    localStorage.setItem(`timeframe${i}`, tf);
-
-    if(intervals[i]) clearInterval(intervals[i]);
-
-    fetchCrypto(i, sym, tf);
-    intervals[i] = setInterval(() => {
-      fetchCrypto(i, sym, tf);
-      checkSignals(i, sym, tf);
-    }, 5000);
-  }
-
-  window.onload = function() {
-    for(let i=0; i<symbols.length; i++) {
-      let savedSym = localStorage.getItem(`symbol${i}`);
-      let savedTf = localStorage.getItem(`timeframe${i}`);
-      if(savedSym) document.getElementById(`sym${i}`).value = savedSym;
-      if(savedTf) document.getElementById(`tf${i}`).value = savedTf;
-      initRow(i);
-    }
-  };
-  </script>
-</body>
-</html>
+    let
