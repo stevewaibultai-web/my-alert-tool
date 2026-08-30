@@ -158,16 +158,4 @@
     try {
       const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
       const data = await res.json();
-      if(data.price) {
-        let price = parseFloat(data.price);
-        document.getElementById(`price${i}`).innerText = `$ ${price.toLocaleString()}`;
-      }
-    } catch(e) {
-      document.getElementById(`price${i}`).innerText = "Error";
-    }
-  }
-
-  let intervals = {};
-  function initRow(i) {
-    let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
-    let
+      if(data
