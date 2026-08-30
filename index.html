@@ -170,4 +170,13 @@
         if(data.price) {
           document.getElementById(`price${i}`).innerText = `$ ${parseFloat(data.price).toLocaleString()}`;
         }
+      } catch(e) {
+        document.getElementById(`price${i}`).innerText = "Error";
       }
+    }
+
+    let intervals = {};
+    function saveSettings(i) {
+      let sym = document.getElementById(`sym${i}`).value;
+      let ind = document.getElementById(`ind${i}`).value;
+      let tf  = document.getElementById(`
