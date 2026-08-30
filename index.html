@@ -1,21 +1,36 @@
-<script>
-const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
-const CHAT_ID = "7287275405";
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Telegram Test</title>
+</head>
+<body style="background:#0b1426; color:#fff; font-family:Segoe UI; text-align:center; padding:50px;">
+  <h2>Telegram Test Page</h2>
+  <button onclick="testTelegram()" style="padding:10px 20px; background:#0088cc; color:#fff; border:none; border-radius:6px; font-weight:bold;">
+    Send Test Message
+  </button>
+  <div id="status" style="margin-top:20px; font-size:14px; color:#0ecb81;"></div>
 
-function testTelegram() {
-  let now = new Date();
-  let timeStr = now.toLocaleTimeString("en-IN", { hour12: false });
-  let msg = "Test Message from Dashboard | Time: " + timeStr;
+  <script>
+    const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
+    const CHAT_ID = "7287275405";
 
-  fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}`)
-    .then(res => res.json())
-    .then(data => {
-      document.getElementById("status").innerText = "Message sent ✅";
-      console.log("Telegram response:", data);
-    })
-    .catch(err => {
-      document.getElementById("status").innerText = "Error ❌";
-      console.error("Telegram error:", err);
-    });
-}
-</script>
+    function testTelegram() {
+      let now = new Date();
+      let timeStr = now.toLocaleTimeString("en-IN", { hour12: false });
+      let msg = "Test Message | Time: " + timeStr;
+
+      fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}`)
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("status").innerText = "Message sent ✅";
+          console.log("Telegram response:", data);
+        })
+        .catch(err => {
+          document.getElementById("status").innerText = "Error ❌";
+          console.error("Telegram error:", err);
+        });
+    }
+  </script>
+</body>
+</html>
