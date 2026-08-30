@@ -3,24 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <title>Trading Alert Dashboard</title>
-  <style>
-    body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0b1426, #1c2b45); color: #fff; padding: 20px; margin: 0; }
-    h2 { text-align: center; color: #38a1f3; margin-bottom: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; border-radius: 10px; overflow: hidden; }
-    th { background: #132240; color: #8fa0c2; padding: 12px; }
-    td { padding: 10px; border-bottom: 1px solid #1c3563; text-align: center; }
-    td input, select { background: #1b2e54; color: #fff; border: 1px solid #2d4b85; border-radius: 4px; padding: 5px; text-align: center; }
-    .price { font-weight: bold; color: #0ecb81; }
-    button { background: #0088cc; color: #fff; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-    button:hover { background: #0ecb81; }
-    #status { margin-top: 20px; font-size: 14px; color: #0ecb81; text-align:center; }
-  </style>
 </head>
-<body>
+<body style="background:#0b1426; color:#fff; font-family:Segoe UI; text-align:center; padding:20px;">
   <h2>Trading Alert Dashboard</h2>
 
-  <table>
-    <tr>
+  <table border="1" style="width:100%; border-collapse:collapse; margin-top:20px;">
+    <tr style="background:#132240; color:#8fa0c2;">
       <th>Symbol</th>
       <th>Indicator</th>
       <th>Timeframe</th>
@@ -38,9 +26,9 @@
               <option>SMA Alerts</option>
             </select></td>
             <td><select id="tf${i}" onchange="saveSettings(${i}); initRow(${i})">
-              <option>1m</option><option>3m</option><option>5m</option><option>15m</option><option>30m</option><option>1h</option><option>4h</option>
+              <option>1m</option><option>3m</option><option>5m</option><option>15m</option>
             </select></td>
-            <td id="price${i}" class="price">Loading...</td>
+            <td id="price${i}" style="color:#0ecb81;">Loading...</td>
             <td><button onclick="sendTelegramAlert(${i}, 'Manual Alert')">Send Alert</button></td>
           </tr>
         `);
@@ -48,7 +36,7 @@
     </script>
   </table>
 
-  <div id="status"></div>
+  <div id="status" style="margin-top:20px; font-size:14px; color:#0ecb81;"></div>
 
   <script>
     const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
@@ -66,67 +54,6 @@
         .catch(err => { document.getElementById("status").innerText = "Error ❌"; });
     }
 
-    async function fetchCandles(symbol, tf="1m") {
-      const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${tf}&limit=200`);
-      const data = await res.json();
-      return data.map(c => parseFloat(c[4]));
-    }
-
-    function EMA(values, period) {
-      let k = 2/(period+1), emaArray = [];
-      emaArray[0] = values[0];
-      for(let i=1;i<values.length;i++){
-        emaArray[i] = values[i]*k + emaArray[i-1]*(1-k);
-      }
-      return emaArray;
-    }
-
-    function SMA(values, period) {
-      let result = [];
-      for(let i=0;i<values.length;i++){
-        if(i<period) result.push(values[i]);
-        else {
-          let sum=0;
-          for(let j=i-period+1;j<=i;j++) sum+=values[j];
-          result.push(sum/period);
-        }
-      }
-      return result;
-    }
-
-    async function checkMACD(i, symbol, tf="1m") {
-      let closes = await fetchCandles(symbol, tf);
-      if(closes.length < 30) return;
-      let ema12 = EMA(closes, 12);
-      let ema26 = EMA(closes, 26);
-      let macdLine = ema12.map((v, idx) => v - ema26[idx]);
-      let signalLine = EMA(macdLine, 9);
-      let lastMacd = macdLine[macdLine.length-1], prevMacd = macdLine[macdLine.length-2];
-      let lastSignal = signalLine[signalLine.length-1], prevSignal = signalLine[signalLine.length-2];
-      if(prevMacd < prevSignal && lastMacd > lastSignal) sendTelegramAlert(i, "MACD Bullish Crossover");
-      else if(prevMacd > prevSignal && lastMacd < lastSignal) sendTelegramAlert(i, "MACD Bearish Crossover");
-    }
-
-    async function checkSMAAlerts(i, symbol, tf="1m") {
-      let closes = await fetchCandles(symbol, tf);
-      if(closes.length < 900) return;
-      let blue = SMA(closes, 15), orange = SMA(closes, 180), purple = SMA(closes, 900);
-      let lastBlue = blue[blue.length-1], prevBlue = blue[blue.length-2];
-      let lastOrange = orange[orange.length-1], prevOrange = orange[orange.length-2];
-      let lastPurple = purple[purple.length-1], prevPurple = purple[purple.length-2];
-      if((prevBlue < prevOrange && lastBlue > lastOrange) || (prevBlue > prevOrange && lastBlue < lastOrange)) {
-        let msg = "Confirmation Alert | Blue crossed Orange";
-        if(Math.abs(lastOrange - lastPurple) < 0.00001) msg += " | Orange merged with Purple";
-        sendTelegramAlert(i, msg);
-      }
-      if((prevOrange < prevPurple && lastOrange > lastPurple) || (prevOrange > prevPurple && lastOrange < lastPurple)) {
-        sendTelegramAlert(i, "Long Trend Alert | Orange crossed Purple");
-      }
-      let blueCrossOrange = (prevBlue < prevOrange && lastBlue > lastOrange) || (prevBlue > prevOrange && lastBlue < lastOrange);
-      let blueCrossPurple = (prevBlue < prevPurple && lastBlue > lastPurple) || (prevBlue > prevPurple && lastBlue < lastPurple);
-      if(blueCrossOrange && blueCrossPurple) sendTelegramAlert(i, "Strong Trend Alert | Blue crossed Orange & Purple");
-    }
-
     async function fetchCrypto(i, symbol, tf="1m") {
       try {
         const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
@@ -139,7 +66,41 @@
       }
     }
 
-    let intervals = {};
+    // LocalStorage save/load
     function saveSettings(i) {
       let sym = document.getElementById(`sym${i}`).value;
-      let ind = document.getElement
+      let ind = document.getElementById(`ind${i}`).value;
+      let tf  = document.getElementById(`tf${i}`).value;
+      localStorage.setItem(`row${i}`, JSON.stringify({sym, ind, tf}));
+    }
+
+    function loadSettings(i) {
+      let data = localStorage.getItem(`row${i}`);
+      if(data) {
+        let {sym, ind, tf} = JSON.parse(data);
+        document.getElementById(`sym${i}`).value = sym;
+        document.getElementById(`ind${i}`).value = ind;
+        document.getElementById(`tf${i}`).value  = tf;
+      }
+    }
+
+    let intervals = {};
+    function initRow(i) {
+      if(intervals[i]) clearInterval(intervals[i]);
+      let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
+      let tf = document.getElementById(`tf${i}`).value;
+      intervals[i] = setInterval(() => {
+        fetchCrypto(i, sym, tf);
+      }, 10000);
+    }
+
+    // Load saved settings on page load
+    window.onload = () => {
+      symbols.forEach((s, i) => {
+        loadSettings(i);
+        initRow(i);
+      });
+    };
+  </script>
+</body>
+</html>
