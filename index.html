@@ -2,35 +2,30 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Telegram Test</title>
+  <title>Crypto Price Test</title>
 </head>
 <body style="background:#0b1426; color:#fff; font-family:Segoe UI; text-align:center; padding:50px;">
-  <h2>Telegram Test Page</h2>
-  <button onclick="testTelegram()" style="padding:10px 20px; background:#0088cc; color:#fff; border:none; border-radius:6px; font-weight:bold;">
-    Send Test Message
-  </button>
-  <div id="status" style="margin-top:20px; font-size:14px; color:#0ecb81;"></div>
+  <h2>Crypto Price Test</h2>
+  <div id="price" style="font-size:20px; color:#0ecb81;">Loading...</div>
 
   <script>
-    const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
-    const CHAT_ID = "7287275405";
-
-    function testTelegram() {
-      let now = new Date();
-      let timeStr = now.toLocaleTimeString("en-IN", { hour12: false });
-      let msg = "Test Message | Time: " + timeStr;
-
-      fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}`)
-        .then(res => res.json())
-        .then(data => {
-          document.getElementById("status").innerText = "Message sent ✅";
-          console.log("Telegram response:", data);
-        })
-        .catch(err => {
-          document.getElementById("status").innerText = "Error ❌";
-          console.error("Telegram error:", err);
-        });
+    async function fetchPrice(symbol="BTCUSDT") {
+      try {
+        const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+        const data = await res.json();
+        if(data.price) {
+          document.getElementById("price").innerText = symbol + " : $" + parseFloat(data.price).toLocaleString();
+        }
+      } catch(e) {
+        document.getElementById("price").innerText = "Error fetching price";
+      }
     }
+
+    // Run once at start
+    fetchPrice();
+
+    // Update every 5 seconds
+    setInterval(() => fetchPrice(), 5000);
   </script>
 </body>
 </html>
