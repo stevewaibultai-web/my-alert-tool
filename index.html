@@ -6,15 +6,16 @@ function testTelegram() {
   let now = new Date();
   let timeStr = now.toLocaleTimeString("en-IN", { hour12: false });
   let msg = "Test Message from Dashboard | Time: " + timeStr;
+
   fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg)}`)
     .then(res => res.json())
     .then(data => {
       document.getElementById("status").innerText = "Message sent ✅";
-      console.log(data);
+      console.log("Telegram response:", data);
     })
     .catch(err => {
       document.getElementById("status").innerText = "Error ❌";
-      console.error(err);
+      console.error("Telegram error:", err);
     });
 }
 </script>
