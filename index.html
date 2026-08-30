@@ -3,12 +3,60 @@
 <head>
   <meta charset="UTF-8">
   <title>Trading Alert Dashboard</title>
+  <style>
+    body { 
+      font-family: 'Segoe UI', sans-serif; 
+      background: linear-gradient(135deg, #0b1426, #1c2b45); 
+      color: #fff; 
+      padding: 20px; 
+      margin: 0;
+    }
+    h2 { text-align: center; color: #38a1f3; margin-bottom: 20px; }
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      margin-top: 20px; 
+      border-radius: 10px; 
+      overflow: hidden; 
+    }
+    th { 
+      background: #132240; 
+      color: #8fa0c2; 
+      padding: 12px; 
+    }
+    td { 
+      padding: 10px; 
+      border-bottom: 1px solid #1c3563; 
+      text-align: center;
+    }
+    td input, select { 
+      background: #1b2e54; 
+      color: #fff; 
+      border: 1px solid #2d4b85; 
+      border-radius: 4px; 
+      padding: 5px; 
+      text-align: center;
+    }
+    .price { font-weight: bold; color: #0ecb81; }
+    button { 
+      background: #0088cc; 
+      color: #fff; 
+      border: none; 
+      padding: 8px 12px; 
+      border-radius: 6px; 
+      font-weight: bold; 
+      cursor: pointer; 
+      transition: 0.3s; 
+    }
+    button:hover { background: #0ecb81; }
+    #status { margin-top: 20px; font-size: 14px; color: #0ecb81; text-align:center; }
+  </style>
 </head>
-<body style="background:#0b1426; color:#fff; font-family:Segoe UI; text-align:center; padding:20px;">
+<body>
   <h2>Trading Alert Dashboard</h2>
 
-  <table border="1" style="width:100%; border-collapse:collapse; margin-top:20px;">
-    <tr style="background:#132240; color:#8fa0c2;">
+  <table>
+    <tr>
       <th>Symbol</th>
       <th>Indicator</th>
       <th>Timeframe</th>
@@ -20,15 +68,15 @@
       symbols.forEach((sym, i) => {
         document.write(`
           <tr>
-            <td><input type="text" id="sym${i}" value="${sym}" onchange="initRow(${i})"></td>
-            <td><select id="ind${i}">
+            <td><input type="text" id="sym${i}" value="${sym}" onchange="saveSettings(${i}); initRow(${i})"></td>
+            <td><select id="ind${i}" onchange="saveSettings(${i}); initRow(${i})">
               <option>MACD</option>
               <option>SMA Alerts</option>
             </select></td>
-            <td><select id="tf${i}">
-              <option>1m</option><option>3m</option><option>5m</option><option>15m</option>
+            <td><select id="tf${i}" onchange="saveSettings(${i}); initRow(${i})">
+              <option>1m</option><option>3m</option><option>5m</option><option>15m</option><option>30m</option><option>1h</option><option>4h</option>
             </select></td>
-            <td id="price${i}" style="color:#0ecb81;">Loading...</td>
+            <td id="price${i}" class="price">Loading...</td>
             <td><button onclick="sendTelegramAlert(${i}, 'Manual Alert')">Send Alert</button></td>
           </tr>
         `);
@@ -36,7 +84,7 @@
     </script>
   </table>
 
-  <div id="status" style="margin-top:20px; font-size:14px; color:#0ecb81;"></div>
+  <div id="status"></div>
 
   <script>
     const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
@@ -122,26 +170,4 @@
         if(data.price) {
           document.getElementById(`price${i}`).innerText = `$ ${parseFloat(data.price).toLocaleString()}`;
         }
-      } catch(e) {
-        document.getElementById(`price${i}`).innerText = "Error";
       }
-    }
-
-    let intervals = {};
-    function initRow(i) {
-      if(intervals[i]) clearInterval(intervals[i]);
-      let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
-      let tf = document.getElementById(`tf${i}`).value;
-      let ind = document.getElementById(`ind${i}`).value;
-      intervals[i] = setInterval(() => {
-        fetchCrypto(i, sym, tf);
-        if(ind === "MACD") checkMACD(i, sym, tf);
-        else if(ind === "SMA Alerts") checkSMAAlerts(i, sym, tf);
-      }, 10000); // every 10s
-    }
-
-    // initialize all rows
-    symbols.forEach((s, i) => initRow(i));
-  </script>
-</body>
-</html>
