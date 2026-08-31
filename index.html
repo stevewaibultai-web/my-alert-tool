@@ -1,288 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading Alert Master Dashboard</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background-color: #0b0c10;
-            color: #ffffff;
-            margin: 0;
-            padding: 40px 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 40px;
-        }
-        .dashboard-container {
-            width: 100%;
-            max-width: 1100px;
-            background-color: #12131a;
-            border: 1px solid #222531;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
-        }
-        h1 {
-            text-align: center;
-            font-size: 26px;
-            font-weight: 500;
-            margin-top: 0;
-            margin-bottom: 30px;
-            color: #ffffff;
-            letter-spacing: 0.5px;
-        }
-        h2 {
-            font-size: 22px;
-            font-weight: 500;
-            margin-top: 0;
-            margin-bottom: 25px;
-            color: #38bdf8;
-            border-bottom: 1px solid #222531;
-            padding-bottom: 10px;
-        }
-        .config-box {
-            background: #161821;
-            padding: 15px;
-            border-radius: 6px;
-            border: 1px solid #2a2e3d;
-            margin-bottom: 25px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .btn-telegram {
-            background-color: #0088cc;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 14px;
-            transition: 0.2s;
-        }
-        .btn-telegram:hover { background-color: #0077b3; }
-        .crypto-select, .crypto-input {
-            background-color: #1e222d;
-            border: 1px solid #363c4e;
-            color: #d1d4dc;
-            padding: 8px 12px;
-            font-size: 14px;
-            border-radius: 4px;
-            outline: none;
-            transition: all 0.2s ease;
-        }
-        .crypto-input {
-            width: 100px;
-            text-align: center;
-            font-weight: bold;
-            color: #ffffff;
-        }
-        .crypto-select {
-            cursor: pointer;
-            appearance: none;
-            padding-right: 30px;
-            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://w3.org' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23d1d4dc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
-            background-repeat: no-repeat;
-            background-position: right 8px center;
-            background-size: 14px;
-        }
-        .crypto-select:hover { border-color: #474f66; color: #ffffff; }
-        .trading-table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-        }
-        .trading-table th {
-            color: #848e9c;
-            font-size: 14px;
-            font-weight: 500;
-            padding: 16px 20px;
-            border-bottom: 1px solid #222531;
-            text-align: center;
-        }
-        .trading-table td {
-            padding: 14px 20px;
-            font-size: 15px;
-            border-bottom: 1px solid #1c1e27;
-            vertical-align: middle;
-            text-align: center;
-        }
-        .trading-table tr:hover {
-            background-color: #161821;
-        }
-        .price-text {
-            color: #0ecb81;
-            font-weight: bold;
-            font-variant-numeric: tabular-nums;
-        }
-        .status-text { font-size: 14px; color: #0ecb81; font-weight: 500; }
-        .btn-alert {
-            background: #212631;
-            color: #d1d4dc;
-            border: 1px solid #363c4e;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        .btn-alert:hover {
-            background: #0088cc;
-            color: #fff;
-            border-color: #0088cc;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trading Alert Dashboard</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #0b1426; color: #fff; padding: 20px; margin: 0; }
+    h2 { text-align: center; color: #38a1f3; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th, td { border: 1px solid #1c3563; padding: 10px; text-align: center; }
+    th { background: #132240; color: #8fa0c2; }
+    td input { background: transparent; border: none; color: #fff; text-align: center; font-weight: bold; }
+    select { background: #1b2e54; color: #fff; border: 1px solid #2d4b85; border-radius: 4px; padding: 5px; }
+    .price { font-weight: bold; color: #0ecb81; }
+    .config-box { background: #132240; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+    button { background: #0088cc; font-weight: bold; cursor: pointer; border: none; padding: 10px; border-radius: 6px; width: 100%; }
+    .status-text { font-size: 12px; margin-top: 5px; color: #0ecb81; }
+  </style>
 </head>
 <body>
+  <h2>Trading Alert Dashboard</h2>
 
-<h1>Trading Alert Master Dashboard</h1>
+  <!-- Telegram Connection -->
+  <div class="config-box">
+    <button onclick="testTelegram()">Test Connection</button>
+    <div id="status" class="status-text"></div>
+  </div>
 
-<!-- Section 1 -->
-<div class="dashboard-container">
-    <h2>Section 1: Live Crypto MACD Screener</h2>
-    
-    <div class="config-box">
-        <span style="color: #848e9c; font-size: 14px;">Auto Calculation Active (5s interval)</span>
-        <button class="btn-telegram" onclick="testTelegram1()">Test Manual Trigger</button>
-        <div id="status1" class="status-text"></div>
-    </div>
+  <!-- Price Table -->
+  <table>
+    <tr>
+      <th>Symbol</th>
+      <th>Indicator</th>
+      <th>Timeframe</th>
+      <th>Current Price</th>
+      <th>Alert</th>
+    </tr>
+    <script>
+      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","MATICUSDT","ACEUSDT","TUTUSDT","STXUSDT","FFUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","MATICUSDT"];
+      symbols.forEach((sym, i) => {
+        document.write(`
+          <tr>
+            <td><input type="text" id="sym${i}" value="${sym}" onchange="initRow(${i})"></td>
+            <td><select id="ind${i}"><option>MACD</option></select></td>
+            <td><select id="tf${i}">
+              <option>1m</option><option>3m</option><option>5m</option><option>15m</option>
+            </select></td>
+            <td id="price${i}" class="price">Loading...</td>
+            <td><button onclick="sendTelegramAlert(${i}, 'Manual Alert')">Send Alert</button></td>
+          </tr>
+        `);
+      });
+    </script>
+  </table>
 
-    <table class="trading-table">
-        <thead>
-            <tr>
-                <th>Symbol</th>
-                <th>Indicator</th>
-                <th>Timeframe</th>
-                <th>Current Price</th>
-                <th>Alert Action</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody1">
-        </tbody>
-    </table>
-</div>
+  <script>
+  const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
+  const CHAT_ID = "7287275405";
 
-<!-- Section 2 -->
-<div class="dashboard-container">
-    <h2>Section 2: Advanced Indicator Alerts (with Candle Clock)</h2>
-    
-    <div class="config-box">
-        <span style="color: #848e9c; font-size: 14px;">Sync Interval Active (10s interval)</span>
-        <div id="status2" class="status-text"></div>
-    </div>
+  function sendTelegramAlert(i, msg="Alert") {
+    let sym = document.getElementById(`sym${i}`).value;
+    let tf = document.getElementById(`tf${i}`).value;
+    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg+": "+sym+" | TF: "+tf)}`);
+  }
 
-    <table class="trading-table">
-        <thead>
-            <tr>
-                <th>Symbol</th>
-                <th>Indicator</th>
-                <th>Timeframe</th>
-                <th>Current Price</th>
-                <th>Alert Action</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody2">
-        </tbody>
-    </table>
-</div>
+  async function fetchCandles(symbol, tf="1m") {
+    const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${tf}&limit=100`);
+    const data = await res.json();
+    return data.map(c => parseFloat(c[4])); // closing prices
+  }
 
-<script>
-    const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
-    const CHAT_ID = "7287275405";
-
-    // Section 1 Code Logic
-    const symbols1 = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","MATICUSDT","ACEUSDT","TUTUSDT","STXUSDT","FFUSDT"];
-    let intervals1 = {};
-
-    function buildTable1() {
-        const tbody = document.getElementById("tableBody1");
-        tbody.innerHTML = "";
-        symbols1.forEach((sym, i) => {
-            tbody.innerHTML += `
-                <tr>
-                    <td><input type="text" class="crypto-input" id="sym1_${i}" value="${sym}" onchange="initRow1(${i})"></td>
-                    <td><select class="crypto-select" id="ind1_${i}"><option>MACD</option></select></td>
-                    <td>
-                        <select class="crypto-select" id="tf1_${i}" onchange="initRow1(${i})">
-                            <option value="1m">1m</option><option value="3m">3m</option><option value="5m">5m</option><option value="15m">15m</option>
-                        </select>
-                    </td>
-                    <td id="price1_${i}" class="price-text">Loading...</td>
-                    <td><button class="btn-alert" onclick="sendTelegramAlert1(${i}, 'Manual Alert')">Send Alert</button></td>
-                </tr>
-            `;
-        });
+  function EMA(values, period) {
+    let k = 2/(period+1);
+    let emaArray = [];
+    emaArray[0] = values[0];
+    for(let i=1;i<values.length;i++){
+      emaArray[i] = values[i]*k + emaArray[i-1]*(1-k);
     }
+    return emaArray;
+  }
 
-    function sendTelegramAlert1(i, msg="Alert") {
-        let sym = document.getElementById(`sym1_${i}`).value;
-        let tf = document.getElementById(`tf1_${i}`).value;
-        fetch(`https://telegram.org{BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(msg+": "+sym+" | TF: "+tf)}`);
+  async function checkMACD(i, symbol, tf="1m") {
+    let closes = await fetchCandles(symbol, tf);
+    if(closes.length < 30) return;
+
+    let ema12 = EMA(closes, 12);
+    let ema26 = EMA(closes, 26);
+    let macdLine = ema12.map((v, idx) => v - ema26[idx]);
+    let signalLine = EMA(macdLine, 9);
+
+    let lastMacd = macdLine[macdLine.length-1];
+    let prevMacd = macdLine[macdLine.length-2];
+    let lastSignal = signalLine[signalLine.length-1];
+    let prevSignal = signalLine[signalLine.length-2];
+
+    if(prevMacd < prevSignal && lastMacd > lastSignal) {
+      sendTelegramAlert(i, "MACD Bullish Crossover");
+    } else if(prevMacd > prevSignal && lastMacd < lastSignal) {
+      sendTelegramAlert(i, "MACD Bearish Crossover");
     }
+  }
 
-    function testTelegram1() {
-        fetch(`https://telegram.org{BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent("Section 1 Connection: Active! ✅")}`)
-        .then(() => {
-            document.getElementById("status1").innerText = "Signal Sent!";
-            setTimeout(() => document.getElementById("status1").innerText = "", 3000);
-        });
+  async function fetchCrypto(i, symbol, tf="1m") {
+    try {
+      const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+      const data = await res.json();
+      if(data.price) {
+        let price = parseFloat(data.price);
+        document.getElementById(`price${i}`).innerText = `$ ${price.toLocaleString()}`;
+      }
+    } catch(e) {
+      document.getElementById(`price${i}`).innerText = "Error";
     }
+  }
 
-    async function fetchCandles1(symbol, tf="1m") {
-        try {
-            const res = await fetch(`https://binance.com{symbol}&interval=${tf}&limit=100`);
-            const data = await res.json();
-            return data.map(c => parseFloat(c[4]));
-        } catch(e) { return []; }
+  let intervals = {};
+  function initRow(i) {
+    let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
+    let tf = document.getElementById(`tf${i}`).value;
+
+    localStorage.setItem(`symbol${i}`, sym);
+    localStorage.setItem(`timeframe${i}`, tf);
+
+    if(intervals[i]) clearInterval(intervals[i]);
+
+    fetchCrypto(i, sym, tf);
+    intervals[i] = setInterval(() => {
+      fetchCrypto(i, sym, tf);
+      checkMACD(i, sym, tf);
+    }, 5000);
+  }
+
+  window.onload = function() {
+    for(let i=0; i<symbols.length; i++) {
+      let savedSym = localStorage.getItem(`symbol${i}`);
+      let savedTf = localStorage.getItem(`timeframe${i}`);
+      if(savedSym) document.getElementById(`sym${i}`).value = savedSym;
+      if(savedTf) document.getElementById(`tf${i}`).value = savedTf;
+      initRow(i);
     }
-
-    function calculateEMA(values, period) {
-        if(values.length === 0) return [];
-        let k = 2 / (period + 1);
-        let emaArray = [];
-        emaArray[0] = values[0];
-        for(let i = 1; i < values.length; i++){
-            emaArray[i] = values[i] * k + emaArray[i-1] * (1 - k);
-        }
-        return emaArray;
-    }
-
-    async function checkMACD1(i, symbol, tf="1m") {
-        let closes = await fetchCandles1(symbol, tf);
-        if(closes.length < 30) return;
-
-        let ema12 = calculateEMA(closes, 12);
-        let ema26 = calculateEMA(closes, 26);
-        let macdLine = ema12.map((v, idx) => v - ema26[idx]);
-        let signalLine = calculateEMA(macdLine, 9);
-
-        let lastMacd = macdLine[macdLine.length-1];
-        let prevMacd = macdLine[macdLine.length-2];
-        let lastSignal = signalLine[signalLine.length-1];
-        let prevSignal = signalLine[signalLine.length-2];
-
-        if(prevMacd < prevSignal && lastMacd > lastSignal) {
-            sendTelegramAlert1(i, "MACD Bullish Crossover");
-        } else if(prevMacd > prevSignal && lastMacd < lastSignal) {
-            sendTelegramAlert1(i, "MACD Bearish Crossover");
-        }
-    }
-
-    async function fetchCrypto1(i, symbol) {
-        try {
-            const res = await fetch(`https://binance.com{symbol}`);
-            const data = await res.json();
-            if(data.price) {
-                document.getElementById(`price1_${i}`).innerText = `$ ${parseFloat(data.price).toLocaleString()}`;
-            }
-        } catch(e) { document.getElementById(`price1_${i}`).innerText = "Error"; }
-    }
-
-    function initRow1(i) {
-        let sym = document.getElementById(`sym1_${i}`).value.toUpperCase().trim();
-        let tf = document.getElementById(`tf1_${i}`).value;
-
-    
+  };
+  </script>
+</body>
+</html>
