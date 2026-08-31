@@ -43,7 +43,6 @@
             border-bottom: 1px solid #222531;
             padding-bottom: 10px;
         }
-        
         .config-box {
             background: #161821;
             padding: 15px;
@@ -66,7 +65,6 @@
             transition: 0.2s;
         }
         .btn-telegram:hover { background-color: #0077b3; }
-        
         .crypto-select, .crypto-input {
             background-color: #1e222d;
             border: 1px solid #363c4e;
@@ -93,7 +91,6 @@
             background-size: 14px;
         }
         .crypto-select:hover { border-color: #474f66; color: #ffffff; }
-
         .trading-table {
             width: 100%;
             border-collapse: collapse;
@@ -123,7 +120,6 @@
             font-variant-numeric: tabular-nums;
         }
         .status-text { font-size: 14px; color: #0ecb81; font-weight: 500; }
-
         .btn-alert {
             background: #212631;
             color: #d1d4dc;
@@ -198,7 +194,7 @@
     const CHAT_ID = "7287275405";
 
     // Section 1 Code Logic
-    const symbols1 = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","MATICUSDT","ACEUSDT","TUTUSDT","STXUSDT","FFUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","MATICUSDT"];
+    const symbols1 = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","MATICUSDT","ACEUSDT","TUTUSDT","STXUSDT","FFUSDT"];
     let intervals1 = {};
 
     function buildTable1() {
@@ -243,13 +239,13 @@
         } catch(e) { return []; }
     }
 
-    function EMA(values, period) {
+    function calculateEMA(values, period) {
         if(values.length === 0) return [];
-        let k = 2/(period+1);
+        let k = 2 / (period + 1);
         let emaArray = [];
         emaArray[0] = values[0];
-        for(let i=1;i<values.length;i++){
-            emaArray[i] = values[i]*k + emaArray[i-1]*(1-k);
+        for(let i = 1; i < values.length; i++){
+            emaArray[i] = values[i] * k + emaArray[i-1] * (1 - k);
         }
         return emaArray;
     }
@@ -258,10 +254,10 @@
         let closes = await fetchCandles1(symbol, tf);
         if(closes.length < 30) return;
 
-        let ema12 = EMA(closes, 12);
-        let ema26 = EMA(closes, 26);
+        let ema12 = calculateEMA(closes, 12);
+        let ema26 = calculateEMA(closes, 26);
         let macdLine = ema12.map((v, idx) => v - ema26[idx]);
-        let signalLine = EMA(macdLine, 9);
+        let signalLine = calculateEMA(macdLine, 9);
 
         let lastMacd = macdLine[macdLine.length-1];
         let prevMacd = macdLine[macdLine.length-2];
@@ -288,3 +284,5 @@
     function initRow1(i) {
         let sym = document.getElementById(`sym1_${i}`).value.toUpperCase().trim();
         let tf = document.getElementById(`tf1_${i}`).value;
+
+    
