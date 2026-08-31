@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Trading Alert Dashboard</title>
+</head>
+<body style="background:#0b1426; color:#fff; font-family:Segoe UI; text-align:center; padding:20px;">
+  <h2>Trading Alert Dashboard</h2>
+
+  <table border="1" style="width:100%; border-collapse:collapse; margin-top:20px;">
+    <tr style="background:#132240; color:#8fa0c2;">
+      <th>Symbol</th>
+      <th>Indicator</th>
+      <th>Timeframe</th>
+      <th>Current Price</th>
+      <th>Alert</th>
+    </tr>
+    <script>
+      const symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT"];
+      symbols.forEach((sym, i) => {
+        document.write(`
+          <tr>
+            <td><input type="text" id="sym${i}" value="${sym}" onchange="saveSettings(${i}); initRow(${i})"></td>
+            <td><select id="ind${i}" onchange="saveSettings(${i}); initRow(${i})">
+              <option>MACD</option>
+              <option>SMA Alerts</option>
+            </select></td>
+            <td><select id="tf${i}" onchange="saveSettings(${i}); initRow(${i})">
+              <option>1m</option><option>3m</option><option>5m</option><option>15m</option>
+            </select></td>
+            <td id="price${i}" style="color:#0ecb81;">Loading...</td>
+            <td><button onclick="sendTelegramAlert(${i}, 'Manual Alert')">Send Alert</button></td>
+          </tr>
+        `);
+      });
+    </script>
+  </table>
+
+  <div id="status" style="margin-top:20px; font-size:14px; color:#0ecb81;"></div>
+
+  <script>
+    const BOT_TOKEN = "8910250156:AAFXETIQy7ILusg--h5FE1PKg-dLFgS7hpg"; 
+    const CHAT_ID = "7287275405";
+
+    function sendTelegramAlert(i, msg="Alert") {
+      let sym = document.getElementById(`sym${i}`).value;
+      let timeframe = document.getElementById(`tf${i}`).value;
+      let now = new Date();
+      let timeStr = now.toLocaleTimeString("en-IN", { hour12: false });
+      let fullMsg = `${msg}: ${sym} | TF: ${timeframe} | Candle Close: ${timeStr}`;
+      fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(fullMsg)}`)
+        .then(res => res.json())
+        .then(data => { document.getElementById("status").innerText = "Message sent ✅"; })
+        .catch(err => { document.getElementById("status").innerText = "Error ❌"; });
+    }
+
+    async function fetchCrypto(i, symbol, tf="1m") {
+      try {
+        const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+        const data = await res.json();
+        if(data.price) {
+          document.getElementById(`price${i}`).innerText = `$ ${parseFloat(data.price).toLocaleString()}`;
+        }
+      } catch(e) {
+        document.getElementById(`price${i}`).innerText = "Error";
+      }
+    }
+
+    // LocalStorage save/load
+    function saveSettings(i) {
+      let sym = document.getElementById(`sym${i}`).value;
+      let ind = document.getElementById(`ind${i}`).value;
+      let tf  = document.getElementById(`tf${i}`).value;
+      localStorage.setItem(`row${i}`, JSON.stringify({sym, ind, tf}));
+    }
+
+    function loadSettings(i) {
+      let data = localStorage.getItem(`row${i}`);
+      if(data) {
+        let {sym, ind, tf} = JSON.parse(data);
+        document.getElementById(`sym${i}`).value = sym;
+        document.getElementById(`ind${i}`).value = ind;
+        document.getElementById(`tf${i}`).value  = tf;
+      }
+    }
+
+    let intervals = {};
+    function initRow(i) {
+      if(intervals[i]) clearInterval(intervals[i]);
+      let sym = document.getElementById(`sym${i}`).value.toUpperCase().trim();
+      let tf = document.getElementById(`tf${i}`).value;
+      intervals[i] = setInterval(() => {
+        fetchCrypto(i, sym, tf);
+      }, 10000);
+    }
+
+    // Load saved settings on page load
+    window.onload = () => {
+      symbols.forEach((s, i) => {
+        loadSettings(i);
+        initRow(i);
+      });
+    };
+  </script>
+</body>
+</html>
+
