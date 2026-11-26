@@ -331,4 +331,590 @@ movingAverage(source, length, maType) =>
         'VWMA' => ta.vwma(source, length)
 
 bollingerBands(source, length, multiplier, maType) =>
-    [movingAve
+    [movingAverage(source, length, maType), multiplier * ta.stdev(source, length)]
+
+supertrend(factor, atrPeriod) =>
+    ta.supertrend(factor, atrPeriod)
+
+rsi() =>
+    osc = ta.rsi(rsiSource, rsiLength)
+    sig = rsiSmoothing ? movingAverage(osc, rsiMaLength, rsiMaType) : na
+
+    stat = switch 
+        osc > 70  => '▲ Overbought'
+        osc >= 60 => '▲ Bullish'
+        osc > 40  => 'Neutral'
+        osc > 30  => '▼ Bearish'
+        => '▼ Oversold'
+
+    [osc, sig, '\nRSI(' + str.tostring(osc, '#.#') + ') · ' + stat]
+
+stochastic() =>
+    osc = movingAverage(ta.stoch(close, high, low, stochPeriodK), stochSmoothK, 'SMA') 
+    sig = movingAverage(osc, stochPeriodD, 'SMA')
+
+    stat = switch 
+        osc > 80  => '▲ Overbought'
+        osc >= 60 => '▲ Bullish'
+        osc > 40  => 'Neutral'
+        osc > 20  => '▼ Bearish'
+        => '▼ Oversold'
+
+    [osc, sig, '\nStochastic(' + str.tostring(osc, '#.#') + ') · ' +  stat]
+
+volumeCandle(vol) =>
+    volMa = ta.sma(vol, vMaLen)
+    volState =
+         vol > volMa * vwcbHigh ?  1 :
+         vol < volMa * vwcbLow  ? -1 : 0
+    [volMa, volState]
+
+alarm(cond, message, htfUser, oncePerBarClose) =>
+    if cond
+        fullMessage = str.format("{0}\n{1} Price ({2}) Timeframe {3}", 
+            message, syminfo.ticker, str.tostring(close, format.mintick), htfUser)
+        alert(fullMessage, oncePerBarClose ? alert.freq_once_per_bar_close : alert.freq_once_per_bar)
+
+collectData(collect, technicalIndicator, oscIndicator, numberOfBars, mini) =>
+
+    var openArray = array.new_float()
+    var highArray = array.new_float()
+    var lowArray  = array.new_float()
+    var closeArray = array.new_float()
+
+    var float htfVOL = na
+    var float htfVOLa = na
+    var volumeStatArray = array.new_int()
+
+    var tiBasisArray = array.new_float()
+    var tiComponentArray = array.new_float()
+    var tiHighArray = array.new_float()
+
+    var oscArray = array.new_float()
+    var sigArray = array.new_float()
+    var string oscStat = na
+
+    var float htfMA20  = na
+    var float htfMA50  = na
+    var float htfMA100 = na
+    var float htfMA200 = na
+
+    if collect
+        openArray.unshift(open)
+        highArray.unshift(high)
+        lowArray.unshift(low)
+        closeArray.unshift(close)
+
+        [volMA, volState] = volumeCandle(nzVolume)
+        htfVOL  := nzVolume
+        htfVOLa := volMA
+        volumeStatArray.unshift(volState)
+
+        htfMA20  := movingAverage(maSource,  20, maType)
+        htfMA50  := movingAverage(maSource,  50, maType)
+        htfMA100 := movingAverage(maSource, 100, maType)
+        htfMA200 := movingAverage(maSource, 200, maType)
+
+        if mini
+            [tiSource, tiComponent] = switch technicalIndicator
+                'Supertrend' => supertrend(stFactor, stLength)
+                'Bollinger Bands' => bollingerBands(bbSource, bbLength, bbMult, bbType)
+                'Moving Average' => [movingAverage(maSource, maLength, maType), 1]
+                => [close, close]
+
+            if technicalIndicator == 'Bollinger Bands'
+                tiHighArray.unshift(tiSource + tiComponent)
+            else
+                tiHighArray.unshift(tiSource)
+
+            tiBasisArray.unshift(tiSource)
+            tiComponentArray.unshift(tiComponent)
+
+            [oscComponent, sigComponent, statComponent] = switch oscIndicator
+                'RSI' => rsi()
+                'Stochastic' => stochastic()
+                => [close, close, '']
+            oscStat := statComponent
+            oscArray.unshift(oscComponent)
+            sigArray.unshift(sigComponent)
+
+        if closeArray.size() > (mini ? numberOfBars : 1)
+            openArray.pop()
+            highArray.pop()
+            lowArray.pop()
+            closeArray.pop()
+            volumeStatArray.pop()
+
+            if mini 
+                tiBasisArray.pop()
+                tiComponentArray.pop()
+                tiHighArray.pop()
+                oscArray.pop()
+                sigArray.pop()
+
+            [openArray, highArray, lowArray, closeArray, volumeStatArray, htfVOL, htfVOLa,
+                 htfMA20, htfMA50, htfMA100, htfMA200,
+                 math.max(highArray.max(), tiHighArray.max()), 
+                 tiBasisArray, tiComponentArray, oscArray, sigArray, oscStat]
+        else
+            [openArray, highArray, lowArray, closeArray, volumeStatArray, htfVOL, htfVOLa,
+                 htfMA20, htfMA50, htfMA100, htfMA200,
+                 math.max(highArray.max(), tiHighArray.max()), 
+                 tiBasisArray, tiComponentArray, oscArray, sigArray, oscStat]
+
+processMini(htfSH, htfTF, chart, openArray, highArray, lowArray, closeArray, volumeStatArray, htfHST, tiBasisArray, tiComponentArray, technicalIndicator, oscArray, sigArray, oscIndicator, offset, first, numberOfBars, oscStat, htfRL, htfLB, htfBLClr, htfBRClr, htfVW) =>
+
+    hOffset = first ? offset : htf1SHm ? htf1SZ + offset + htf1NB : offset
+
+    if htfSH
+
+        //var bool cAlertH = false
+        //var bool cAlertL = false
+        //var bool stAlert = false
+
+        //if timeframe.change(timeframe(htfTF))
+        //    cAlertH := true
+        //    cAlertL := true
+        //    stAlert := true
+
+        var htfCharts htfChart = htfCharts.new(
+             array.new<line>(na), line(na), line(na), line(na), line(na), line(na), line(na), line(na), line(na), 
+             array.new<chart.point>(na), array.new<chart.point>(na), array.new<chart.point>(na), array.new<chart.point>(na), array.new<chart.point>(na),
+             array.new<polyline>(na), polyline.new(na), polyline.new(na), polyline.new(na), polyline.new(na), polyline.new(na), 
+             array.new<label>(na), label(na), label(na), label(na), label(na), label(na), label(na), label(na))
+
+        if not na(closeArray) and closeArray.size() > 0
+
+            if htfChart.bars.size() > 0
+                for i = htfChart.bars.size() - 1 to 0  by 1
+                    line.delete(htfChart.bars.shift())
+
+            if htfChart.stLineHide.size() > 0
+                for i = 0 to htfChart.stLineHide.size() - 1 by 1
+                    polyline.delete(htfChart.stLineHide.shift())
+
+            if technicalIndicator != 'None'
+                htfChart.tiUpperPoints.clear()
+                htfChart.tiUpperLine.delete()
+
+                htfChart.tiBasisPoints.clear()
+                htfChart.tiBasisLine.delete()
+
+                htfChart.tiLowerPoints.clear()
+                htfChart.tiLowerLine.delete()
+
+            if oscIndicator != 'None'
+                htfChart.oscPoints.clear()
+                htfChart.oscLine.delete()
+
+                htfChart.sigPoints.clear()
+                htfChart.sigLine.delete()
+
+                htfChart.obLine.delete()
+                htfChart.midLine.delete()
+                htfChart.osLine.delete()
+            
+            if htfRL == 'Range Extremes' or htfRL == 'Range Quartiles'
+                htfChart.refLine100.delete()
+                htfChart.refLine0.delete()
+
+                htfChart.refLabel100.delete()
+                htfChart.refLabel0.delete()
+
+            if htfRL == 'Range Quartiles'
+                htfChart.refLine75.delete()
+                htfChart.refLine50.delete()
+                htfChart.refLine25.delete()
+
+                htfChart.refLabel75.delete()
+                htfChart.refLabel50.delete()
+                htfChart.refLabel25.delete()
+
+            if htfChart.stDirLabel.size() > 0
+                for i = 0 to htfChart.stDirLabel.size() - 1 by 1
+                    label.delete(htfChart.stDirLabel.shift())
+        
+            for index = 0 to closeArray.size() - 1
+
+                arrayIndex = closeArray.size() - index - 1
+                barIndex = hOffset + bar_index + index
+                bearCandle = openArray.get(arrayIndex) > closeArray.get(arrayIndex)
+                barColor = chart == 'High-Low' ? color.blue : 
+                             htfVW ? 
+                                 volumeStatArray.get(arrayIndex) ==  1 ? bearCandle ? vwHBRClr : vwHBLClr : 
+                                 volumeStatArray.get(arrayIndex) == -1 ? bearCandle ? vwLBRClr : vwLBLClr : 
+                                 bearCandle ? htfBRClr : htfBLClr :
+                             bearCandle ? htfBRClr : htfBLClr
+
+                if chart != 'High-Low'
+                    htfChart.bars.push(line.new(barIndex, openArray.get(arrayIndex), barIndex, closeArray.get(arrayIndex), xloc.bar_index, extend.none, barColor, line.style_solid, 3))
+
+                htfChart.bars.push(line.new(barIndex, highArray.get(arrayIndex), barIndex, lowArray.get(arrayIndex), xloc.bar_index, extend.none, barColor, line.style_solid, chart == 'High-Low' ? 3 : 1))
+
+                if technicalIndicator != 'None' and tiBasisArray.get(arrayIndex) > 0
+                    if technicalIndicator == 'Supertrend'
+                        htfChart.tiBasisPoints.push(chart.point.from_index(barIndex, tiBasisArray.get(arrayIndex)))
+                    else if technicalIndicator == 'Bollinger Bands'
+                        htfChart.tiUpperPoints.push(chart.point.from_index(barIndex, tiBasisArray.get(arrayIndex) + tiComponentArray.get(arrayIndex)))
+                        htfChart.tiBasisPoints.push(chart.point.from_index(barIndex, tiBasisArray.get(arrayIndex)))
+                        htfChart.tiLowerPoints.push(chart.point.from_index(barIndex, tiBasisArray.get(arrayIndex) - tiComponentArray.get(arrayIndex)))
+                    else
+                        htfChart.tiBasisPoints.push(chart.point.from_index(barIndex, tiBasisArray.get(arrayIndex)))
+
+                if oscIndicator != 'None' and oscArray.get(arrayIndex) > 0
+                    htfChart.oscPoints.push(chart.point.from_index(barIndex, pLST * (1 - pCHR * oscVerticalOffset) * (1 + oscArray.get(arrayIndex) / oscHST * pCHR / oscHight) ))
+                    htfChart.sigPoints.push(chart.point.from_index(barIndex, pLST * (1 - pCHR * oscVerticalOffset) * (1 + sigArray.get(arrayIndex) / oscHST * pCHR / oscHight) ))
+
+                    //label.new(barIndex, high, str.tostring( pLST  * (1 - pCHR * oscVerticalOffset) * (1 + sigArray.get(arrayIndex) / oscHST * pCHR / oscHight) ))
+
+            if technicalIndicator != 'None'
+
+                if technicalIndicator == 'Supertrend'
+                    htfChart.tiBasisLine := polyline.new(htfChart.tiBasisPoints, false, false, xloc.bar_index, stColor, noColor, line.style_solid, 1)
+
+                    for index = 0 to closeArray.size() - 1 by 1
+                        arrayIndex = closeArray.size() - index - 1
+                        barIndex = hOffset + bar_index + index
+
+                        if arrayIndex < closeArray.size() - 1
+                            if tiComponentArray.get(arrayIndex) != tiComponentArray.get(arrayIndex + 1)
+
+                                htfChart.stLineHide.push(polyline.new(array.from(chart.point.from_index(barIndex - 1, tiBasisArray.get(arrayIndex + 1)), chart.point.from_index(barIndex, tiBasisArray.get(arrayIndex))), false, false, xloc.bar_index, chart.bg_color, noColor, line.style_solid, 2))
+                                htfChart.stDirLabel.push(label.new(barIndex, tiBasisArray.get(arrayIndex), '', color = stColor, style = label.style_circle, size = size.auto))
+                                
+                    //if tiComponentArray.first() != tiComponentArray.get(1) and stAlert
+                    //    alarm(true, 'Supertrend Switch Direction', timeframeText(htfTF), true)
+                    //    stAlert := false
+
+                else if technicalIndicator == 'Bollinger Bands'
+                    htfChart.tiUpperLine := polyline.new(htfChart.tiUpperPoints, false, false, xloc.bar_index, bbuColor, noColor, line.style_solid, 1)
+                    htfChart.tiBasisLine := polyline.new(htfChart.tiBasisPoints, false, false, xloc.bar_index, bbbColor, noColor, line.style_solid, 1)
+                    htfChart.tiLowerLine := polyline.new(htfChart.tiLowerPoints, false, false, xloc.bar_index, bbuColor, noColor, line.style_solid, 1)
+                    htfChart.tiLowerLine
+                else
+                    htfChart.tiBasisLine := polyline.new(htfChart.tiBasisPoints, false, false, xloc.bar_index, maColor, noColor, line.style_solid, 1)
+                    htfChart.tiBasisLine
+
+            if oscIndicator != 'None'
+
+                [oscColor, sigColor, upperBand, lowerBand] = if oscIndicator == 'RSI'
+                    [#7e57c2, #fdd835, 70, 30]
+                else
+                    [#2962FF, #FF6D00, 80, 20]
+
+                htfChart.oscLine := polyline.new(htfChart.oscPoints, false, false, xloc.bar_index, oscColor, noColor, line.style_solid, 1)
+                htfChart.sigLine := polyline.new(htfChart.sigPoints, false, false, xloc.bar_index, sigColor, noColor, line.style_solid, 1)
+                htfChart.obLine  := line.new(htfChart.oscPoints.first().index, pLST * (1 - pCHR * oscVerticalOffset) * (1 + upperBand / oscHST * pCHR / oscHight), htfChart.oscPoints.last().index, pLST * (1 - pCHR * oscVerticalOffset) * (1 + upperBand / oscHST * pCHR / oscHight), xloc.bar_index, extend.none, color.new(color.red , 50), line.style_solid , 2)
+                htfChart.midLine := line.new(htfChart.oscPoints.first().index, pLST * (1 - pCHR * oscVerticalOffset) * (1 + 50        / oscHST * pCHR / oscHight), htfChart.oscPoints.last().index, pLST * (1 - pCHR * oscVerticalOffset) * (1 +        50 / oscHST * pCHR / oscHight), xloc.bar_index, extend.none, color.new(color.gray, 50), line.style_dotted, 2)
+                htfChart.osLine  := line.new(htfChart.oscPoints.first().index, pLST * (1 - pCHR * oscVerticalOffset) * (1 + lowerBand / oscHST * pCHR / oscHight), htfChart.oscPoints.last().index, pLST * (1 - pCHR * oscVerticalOffset) * (1 + lowerBand / oscHST * pCHR / oscHight), xloc.bar_index, extend.none, color.new(color.teal, 50), line.style_solid , 2)
+
+            if htfRL == 'Range Extremes' or htfRL == 'Range Quartiles'
+                sIdx = bar_index[math.min(tfToBars(htfTF) * (numberOfBars - 1), 5000)]
+                eIdx = hOffset + bar_index + numberOfBars
+
+                hst = highArray.max()
+                htfChart.refLine100  := line.new(sIdx, hst, eIdx, hst, xloc.bar_index, extend.none, color.new(color.gray , 50), line.style_solid, 1)
+                    
+                lst = lowArray.min()
+                htfChart.refLine0  := line.new(sIdx, lst , eIdx, lst , xloc.bar_index, extend.none, color.new(color.gray , 50), line.style_solid, 1)
+                    
+                if htfLB
+                    htfChart.refLabel100 := label.new(eIdx - 1, hst, 'H · ' + str.tostring(hst, format.mintick), color = noColor, style = label.style_label_lower_left, textcolor = chart.fg_color, size = size.small)
+                    htfChart.refLabel0   := label.new(eIdx - 1, lst, 'L · ' + str.tostring(lst, format.mintick), color = noColor, style = label.style_label_upper_left, textcolor = chart.fg_color, size = size.small)
+
+                if htfRL == 'Range Quartiles'
+                    qRange = (hst - lst) / 4
+                    htfChart.refLine75  := line.new(sIdx, lst + 3 * qRange, eIdx, lst + 3 * qRange, xloc.bar_index, extend.none, color.new(color.gray , 50), line.style_dashed, 1)
+                    htfChart.refLine50  := line.new(sIdx, lst + 2 * qRange, eIdx, lst + 2 * qRange, xloc.bar_index, extend.none, color.new(color.gray , 50), line.style_dotted, 1)
+                    htfChart.refLine25  := line.new(sIdx, lst + 1 * qRange, eIdx, lst + 1 * qRange, xloc.bar_index, extend.none, color.new(color.gray , 50), line.style_dashed, 1)
+                        
+                    if htfLB
+                        htfChart.refLabel75 := label.new(eIdx, lst + 3 * qRange, '75% · ' + str.tostring(lst + 3 * qRange, format.mintick), color = noColor, style = label.style_label_left, textcolor = chart.fg_color, size = size.small)
+                        htfChart.refLabel50 := label.new(eIdx, lst + 2 * qRange, '50% · ' + str.tostring(lst + 2 * qRange, format.mintick), color = noColor, style = label.style_label_left, textcolor = chart.fg_color, size = size.small)
+                        htfChart.refLabel25 := label.new(eIdx, lst + 1 * qRange, '25% · ' + str.tostring(lst + 1 * qRange, format.mintick), color = noColor, style = label.style_label_left, textcolor = chart.fg_color, size = size.small)
+
+            if htfLB
+                //volStt = volumeStatArray.first() ==  1 ? '\nParticipation · High'  : 
+                //           volumeStatArray.first() == -1 ? '\nParticipation · Low' : '\nParticipation · Normal'
+                panelTextTI = timeframeText(htfTF) + ' · ' + chart + (technicalIndicator != 'None' ? technicalIndicator == 'Moving Average' ? '\n' + technicalIndicator + ' (' + maType + ')' : '\n' + technicalIndicator : '') //+ volStt
+                htfChart.panelTI.delete()
+                htfChart.panelTI := label.new(hOffset + int(numberOfBars / 2) + bar_index, htfHST, panelTextTI, color = noColor, style = label.style_label_down, textcolor = chart.fg_color, textalign = text.align_left)
+                htfChart.panelTI
+
+                if oscIndicator != 'None'
+                    panelTextOI = oscStat
+                    htfChart.panelOI.delete()
+                    htfChart.panelOI := label.new(hOffset + int(numberOfBars / 2) + bar_index, pLST * (1 - pCHR * oscVerticalOffset), panelTextOI, color = noColor, style = label.style_label_up, textcolor = chart.fg_color, textalign = text.align_left)
+                    htfChart.panelOI
+
+            //if cAlertH
+            //    alarm(highArray.first() > highArray.max(1) and true, 'New High Detected among last ' + str.tostring(numberOfBars) + ' HTF(' + timeframeText(htfTF) + ') candles', timeframeText(htfTF), false)
+            //    cAlertH := false
+            //if cAlertL
+            //    alarm(lowArray.first()  < lowArray.min(1)  and true, 'New Low Detected among last '  + str.tostring(numberOfBars) + ' HTF(' + timeframeText(htfTF) + ') candles', timeframeText(htfTF), false)
+            //    cAlertL := false
+
+processHTF(htfTF, htfCT, openArray, highArray, lowArray, closeArray, volumeStatArray, htfBLClr, htfBRClr, htfClrT, htfVW) =>
+
+    var box htfBXhl = na
+    var box htfBXoc = na
+
+
+    if not na(closeArray) and closeArray.size() > 0
+        bearCandle = closeArray.first() < openArray.first()
+        bxColor = htfVW ? 
+                     volumeStatArray.first() ==  1 ? bearCandle ? vwHBRClr : vwHBLClr : 
+                     volumeStatArray.first() == -1 ? bearCandle ? vwLBRClr : vwLBLClr : 
+                             bearCandle ? htfBRClr : htfBLClr :
+                             bearCandle ? htfBRClr : htfBLClr
+
+        if timeframe.change(timeframe(htfTF))
+            htfBXhl := box.new(bar_index, highArray.first(), bar_index, lowArray.first(), color.new(bxColor, 70), bgcolor = color.new(bxColor, htfClrT))
+
+            if htf1CT != 'High-Low'
+                htfBXoc := box.new(bar_index, openArray.first(), bar_index, closeArray.first(), color.new(bxColor, 70), bgcolor = color.new(bxColor, htfClrT))
+            true
+        else
+            htfBXhl.set_top(highArray.first())
+            htfBXhl.set_rightbottom(bar_index, lowArray.first())
+            htfBXhl.set_bgcolor(color.new(bxColor, htfClrT))
+            htfBXhl.set_border_color(color.new(bxColor, 70))
+
+            if htfCT != 'High-Low'
+                htfBXoc.set_top(openArray.first()) // test
+                htfBXoc.set_rightbottom(bar_index, closeArray.first())
+                htfBXoc.set_bgcolor(color.new(bxColor, htfClrT))
+                htfBXoc.set_border_color(color.new(bxColor, 70))
+            true
+
+//---------------------------------------------------------------------------------------------------------------------//
+// Calculations
+
+htf1SY = htf1CT == 'Heikin Ashi' ? ticker.heikinashi(syminfo.tickerid) : ticker.standard(syminfo.tickerid)
+[openArray1, highArray1, lowArray1, closeArray1, volumeStatArray1, htfVOL1, htfVOLa1, htfMA201, htfMA501, htfMA1001, htfMA2001, htfHST1, tiBasisArray1, tiComponentArray1, oscArray1, sigArray1, oscStat1] = 
+     request.security(htf1SY, timeframe(htf1TF), collectData(htf1SH or htf1SHm or volStat or pmaStat, htf1TI, htf1OI, htf1NB, htf1SHm), calc_bars_count = lookbackBars + 1)
+
+htf2SY = htf2CT == 'Heikin Ashi' ? ticker.heikinashi(syminfo.tickerid) : ticker.standard(syminfo.tickerid)
+[openArray2, highArray2, lowArray2, closeArray2, volumeStatArray2, htfVOL2, htfVOLa2, htfMA202, htfMA502, htfMA1002, htfMA2002, htfHST2, tiBasisArray2, tiComponentArray2, oscArray2, sigArray2, oscStat2] = 
+     request.security(htf2SY, timeframe(htf2TF), collectData(htf2SH or htf2SHm or volStat or pmaStat, htf2TI, htf2OI, htf2NB, htf2SHm), calc_bars_count = lookbackBars + 1)
+
+processMini((chart.is_standard or chart.is_heikinashi) and htf1SHm and barstate.islast and last_bar_index > math.max(htf1NB, htf2NB) + tiMaxLength - 1, htf1TF, htf1CT, openArray1, highArray1, lowArray1, closeArray1, volumeStatArray1, htfHST1, tiBasisArray1, tiComponentArray1, htf1TI, oscArray1, sigArray1, htf1OI, htf1SZ, true , htf1NB, oscStat1, htf1RL, htf1LB, htf1BLClr, htf1BRClr, htf1VWm)
+processMini((chart.is_standard or chart.is_heikinashi) and htf2SHm and barstate.islast and last_bar_index > math.max(htf1NB, htf2NB) + tiMaxLength - 1, htf2TF, htf2CT, openArray2, highArray2, lowArray2, closeArray2, volumeStatArray2, htfHST2, tiBasisArray2, tiComponentArray2, htf2TI, oscArray2, sigArray2, htf2OI, htf2SZ, false, htf2NB, oscStat2, htf2RL, htf2LB, htf2BLClr, htf2BRClr, htf2VWm)
+
+if htf1SH
+    processHTF(htf1TF, htf1CT, openArray1, highArray1, lowArray1, closeArray1, volumeStatArray1, htf1BLClr, htf1BRClr, htf1ClrT, htf1VW)
+
+if htf2SH
+    processHTF(htf2TF, htf2CT, openArray2, highArray2, lowArray2, closeArray2, volumeStatArray2, htf2BLClr, htf2BRClr, htf2ClrT, htf2VW)
+
+//plot(htfMA201)
+
+[supertrend, direction] = ta.supertrend(stFactor, stLength)
+
+supertrend := barstate.isfirst ? na : supertrend
+upTrend =    plot(chartTI == 'Supertrend' ? direction < 0 ? supertrend : na : na, "ST Up Trend",   color = color.green, style = plot.style_linebr, display = display)
+downTrend =  plot(chartTI == 'Supertrend' ? direction < 0 ? na : supertrend : na, "ST Down Trend", color = color.red,   style = plot.style_linebr, display = display)
+bodyMiddle = plot(chartTI == 'Supertrend' ? barstate.isfirst ? na : (open + close) / 2 : na, "Body Middle", display = display.none, editable = false)
+
+fill(bodyMiddle, upTrend,   title = "ST Uptrend Fill",   color = color.new(color.green, 90), fillgaps = false)
+fill(bodyMiddle, downTrend, title = "ST Downtrend Fill", color = color.new(color.red,   90), fillgaps = false)
+
+[basis, dev] = bollingerBands(bbSource, bbLength, bbMult, bbType)
+
+plot(chartTI == 'Bollinger Bands' ? basis : na, "BB Basis", color=bbbColor, display = display)
+p1 = plot(chartTI == 'Bollinger Bands' ? basis + dev : na, "BB Upper", color=bbuColor, display = display)
+p2 = plot(chartTI == 'Bollinger Bands' ? basis - dev : na, "BB Lower", color=bbuColor, display = display)
+
+ma20  = movingAverage(maSource, 20, maType)
+ma50  = movingAverage(maSource, 50, maType)
+ma100 = movingAverage(maSource, 100, maType)
+ma200 = movingAverage(maSource, 200, maType)
+
+plot(chartTI == 'Moving Average Ribbon' ? ma20   : na, 'MA (20)' , ma20Color , 1, display = display)
+plot(chartTI == 'Moving Average Ribbon' ? ma50   : na, 'MA (50)' , ma50Color , 1, display = display)
+plot(chartTI == 'Moving Average Ribbon' ? ma100  : na, 'MA (100)', ma100Color, 2, display = display)
+plot(chartTI == 'Moving Average Ribbon' ? ma200  : na, 'MA (200)', ma200Color, 2, display = display)
+
+
+var a_lines = array.new_line()
+var polyline oscLineC = na
+var polyline sigLineC = na
+var label oiLabel = na
+
+oscPointsC = array.new<chart.point>(0)
+sigPointsC = array.new<chart.point>(0)
+
+lookbackLength = math.max(htf1NB, htf2NB)
+
+[osc, sig, stat] = switch chartOI
+    'RSI' => rsi()
+    'Stochastic' => stochastic()
+
+[oscColor, sigColor, upperBand, lowerBand] = if chartOI == 'RSI'
+    [#7e57c2, #fdd835, 70, 30]
+else
+    [#2962FF, #FF6D00, 80, 20]
+
+if barstate.islast and chartOI != 'None'
+
+    if array.size(a_lines) > 0
+        for i = 1 to array.size(a_lines)
+            line.delete(array.shift(a_lines))
+
+    oscLineC.delete()
+    sigLineC.delete()
+    oiLabel.delete()
+
+    a_lines.push(line.new(bar_index[lookbackLength], pLST * (1 - pCHR * oscVerticalOffset) * (1 + upperBand / oscHST * pCHR / oscHight), bar_index, pLST * (1 - pCHR * oscVerticalOffset) * (1 + upperBand / oscHST * pCHR / oscHight), xloc.bar_index, extend.none, color.new(color.red , 50), line.style_solid , 2))
+    a_lines.push(line.new(bar_index[lookbackLength], pLST * (1 - pCHR * oscVerticalOffset) * (1 + 50        / oscHST * pCHR / oscHight), bar_index, pLST * (1 - pCHR * oscVerticalOffset) * (1 +        50 / oscHST * pCHR / oscHight), xloc.bar_index, extend.none, color.new(color.gray, 50), line.style_dotted, 2))
+    a_lines.push(line.new(bar_index[lookbackLength], pLST * (1 - pCHR * oscVerticalOffset) * (1 + lowerBand / oscHST * pCHR / oscHight), bar_index, pLST * (1 - pCHR * oscVerticalOffset) * (1 + lowerBand / oscHST * pCHR / oscHight), xloc.bar_index, extend.none, color.new(color.teal, 50), line.style_solid , 2))
+
+    oiLabel := label.new(bar_index[int(math.max(htf1NB, htf2NB)/2)], pLST * (1 - pCHR * oscVerticalOffset), stat, color = noColor, style = label.style_label_up, textcolor = chart.fg_color, textalign = text.align_left)
+
+    for barIndex = 0 to lookbackLength - 1
+
+        if osc[barIndex] > 0
+            oscPointsC.push(chart.point.from_index(bar_index[barIndex], pLST * (1 - pCHR * oscVerticalOffset) * (1 + osc[barIndex] / oscHST * pCHR / oscHight)))
+
+        if rsiSmoothing
+            sigPointsC.push(chart.point.from_index(bar_index[barIndex], pLST * (1 - pCHR * oscVerticalOffset) * (1 + sig[barIndex] / oscHST * pCHR / oscHight)))
+
+    oscLineC := polyline.new(oscPointsC, line_color = oscColor)
+    sigLineC := polyline.new(sigPointsC, line_color = sigColor)
+
+//---------------------------------------------------------------------------------------------------------------------//
+
+//---------------------------------------------------------------------------------------------------------------------//
+// Volume-Weighted Candle
+
+bullCandle    = close > open
+barcolor(chartVW and bool(nzVolume) ?
+        nzVolume > vSMA * vwcbHigh ?
+            bullCandle ? vwHBLClr : vwHBRClr :
+        nzVolume < vSMA * vwcbLow ?
+            bullCandle ? vwLBLClr : vwLBRClr : na
+    : na, title='Volume Weighted Colored Bars', editable = false)
+
+//alarm(nzVolume > vSMA * vwcbHigh, 'High trading Volume detected', timeframe.period, false)
+//alarm(nzVolume > vSMA * 4.669, 'Watch out, Volume SPIKE detected, may be a sign of exhaustion', timeframe.period, false)
+
+//---------------------------------------------------------------------------------------------------------------------//
+// Statistical Panel
+
+//var float firstC = na
+//if barstate.isfirst
+//    firstC := close
+
+getPriceValue(htf) =>
+    var value = 0.
+    if timeframe.change(htf)
+        value := close[1]
+    value
+    
+dROR = (close / getPriceValue('D')   - 1) * 100
+wROR = (close / getPriceValue('W')   - 1) * 100
+mROR = (close / getPriceValue('M')   - 1) * 100
+qROR = (close / getPriceValue('3M')  - 1) * 100
+yROR = (close / getPriceValue('12M') - 1) * 100
+
+//if na(yROR)
+//    yROR := (close / firstC - 1) * 100
+
+var float q1 = na, var float q2 = na, var float q3 = na, var float q4 = na
+
+if month < 4
+    q1 := qROR, q2 := na, q3 := na, q4 := na
+else if month > 3 and month < 7
+    q2 := qROR
+else if month > 6 and month < 10
+    q3 := qROR
+else if month > 9
+    q4 := qROR
+
+var float yROR1 = na, var float yROR2 = na, var float yROR3 = na
+var int yr1 = na, var int yr2 = na, var int yr3= na
+
+if timeframe.change('12M')
+    yROR3 := yROR2  , yr3 := yr2
+    yROR2 := yROR1  , yr2 := yr1
+    yROR1 := yROR[1], yr1 := year[1]
+
+upColor = #22ab94
+dnColor = #f23645
+naColor = #9aa0a6
+transp  = 89
+
+var table change = table.new(position.top_right, 4, 10, border_width=3)
+
+if barstate.islast and chgStat and chart.is_standard
+    //table.cell(change, 0, 0, 'Perf', text_color=naColor, bgcolor=color.new(naColor, 81), text_halign=text.align_left, text_size=textSize,text_font_family = font.family_monospace)
+
+    if not timeframe.isweekly and not timeframe.ismonthly and not na(dROR)
+        table.cell(change, 1, 0, str.tostring( dROR, '#.##')  + '%\nDTD' , text_color=dROR > 0  ? upColor : dnColor, bgcolor=dROR > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, tooltip='Day to Date', text_font_family = font.family_monospace)
+        if not timeframe.ismonthly
+            table.cell(change, 2, 0, na(wROR) ? '-\nWTD' : str.tostring( wROR, '#.##')  + '%\nWTD' , text_color=na(wROR) ? naColor : wROR > 0  ? upColor : dnColor, bgcolor=na(wROR) ? color.new(naColor, transp) : wROR > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, tooltip='Week to Date' , text_font_family = font.family_monospace)
+        table.cell    (change, 3, 0, na(mROR) ? '-\nMTD' : str.tostring( mROR, '#.##')  + '%\nMTD' , text_color=na(mROR) ? naColor : mROR > 0  ? upColor : dnColor, bgcolor=na(mROR) ? color.new(naColor, transp) : mROR > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, tooltip='Month to Date', text_font_family = font.family_monospace)
+
+    if not na(q1) //and not na(q2) and not na(q3) and not na(q4)
+        table.cell(change, 0, 1, na(q1) ? '-\nQ1' : str.tostring( q1, '#.##') + '%\nQ1', text_color=na(q1) ? naColor : q1 > 0 ? upColor : dnColor, bgcolor=na(q1) ? color.new(naColor, transp) : q1 > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, tooltip='1st Quarter of ' + str.tostring(year), text_font_family = font.family_monospace)
+        table.cell(change, 1, 1, na(q2) ? '-\nQ2' : str.tostring( q2, '#.##') + '%\nQ2', text_color=na(q2) ? naColor : q2 > 0 ? upColor : dnColor, bgcolor=na(q2) ? color.new(naColor, transp) : q2 > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, tooltip='2nd Quarter of ' + str.tostring(year), text_font_family = font.family_monospace)
+        table.cell(change, 2, 1, na(q3) ? '-\nQ3' : str.tostring( q3, '#.##') + '%\nQ3', text_color=na(q3) ? naColor : q3 > 0 ? upColor : dnColor, bgcolor=na(q3) ? color.new(naColor, transp) : q3 > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, tooltip='3rd Quarter of ' + str.tostring(year), text_font_family = font.family_monospace)
+        table.cell(change, 3, 1, na(q4) ? '-\nQ4' : str.tostring( q4, '#.##') + '%\nQ4', text_color=na(q4) ? naColor : q4 > 0 ? upColor : dnColor, bgcolor=na(q4) ? color.new(naColor, transp) : q4 > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, tooltip='4th Quarter of ' + str.tostring(year), text_font_family = font.family_monospace)
+
+    if not na(yROR)
+        table.cell(change, 3, 2, str.tostring(yROR , '#.##') + '%\n' + str.tostring(year), text_color=yROR  > 0 ? upColor : dnColor, bgcolor=yROR  > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, tooltip= str.tostring(year) + ' Year to Date', text_font_family = font.family_monospace)
+        table.cell(change, 2, 2, na(yROR1) ? '-\n-' : str.tostring(yROR1, '#.##') + '%\n' + str.tostring(yr1) , text_color=na(yROR1) ? naColor : yROR1 > 0 ? upColor : dnColor, bgcolor=na(yROR1) ? color.new(naColor, transp) : yROR1 > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, tooltip=na(yROR1) and na(yr1) ? '' : str.tostring(yr1) + ' Rate of Return', text_font_family = font.family_monospace)
+        table.cell(change, 1, 2, na(yROR2) ? '-\n-' : str.tostring(yROR2, '#.##') + '%\n' + str.tostring(yr2) , text_color=na(yROR2) ? naColor : yROR2 > 0 ? upColor : dnColor, bgcolor=na(yROR2) ? color.new(naColor, transp) : yROR2 > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, tooltip=na(yROR2) and na(yr2) ? '' : str.tostring(yr2) + ' Rate of Return', text_font_family = font.family_monospace)
+        table.cell(change, 0, 2, na(yROR3) ? '-\n-' : str.tostring(yROR3, '#.##') + '%\n' + str.tostring(yr3) , text_color=na(yROR3) ? naColor : yROR3 > 0 ? upColor : dnColor, bgcolor=na(yROR3) ? color.new(naColor, transp) : yROR3 > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, tooltip=na(yROR3) and na(yr3) ? '' : str.tostring(yr3) + ' Rate of Return', text_font_family = font.family_monospace)
+
+pma(ma) =>
+    (close / ma - 1) * 100
+
+if barstate.islast and pmaStat and chart.is_standard
+    table.cell(change, 1, 3, 'Chart'   , text_color=naColor, bgcolor=color.new(naColor, 81), text_size=textSize,text_font_family = font.family_monospace)
+    table.cell(change, 2, 3, timeframeText(htf1TF) , text_color=naColor, bgcolor=color.new(naColor, 81), text_size=textSize,text_font_family = font.family_monospace)
+    table.cell(change, 3, 3, timeframeText(htf2TF), text_color=naColor, bgcolor=color.new(naColor, 81), text_size=textSize,text_font_family = font.family_monospace)
+
+    pma20c = pma(ma20), pma201 = pma(htfMA201), pma202  = pma(htfMA202)
+    table.cell(change, 0, 4, 'MA20', text_color=naColor, bgcolor=color.new(naColor, 81), text_halign=text.align_left, text_size=textSize, text_font_family = font.family_monospace)
+    table.cell(change, 1, 4, na(pma20c) ? '-' : str.tostring(pma20c, '#.##') + '%', text_color = na(pma20c) ? naColor : pma20c > 0 ? upColor : dnColor, bgcolor=na(pma20c) ? color.new(naColor, transp) : pma20c > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, text_font_family = font.family_monospace)
+    table.cell(change, 2, 4, na(pma201) ? '-' : str.tostring(pma201, '#.##') + '%', text_color = na(pma201) ? naColor : pma201 > 0 ? upColor : dnColor, bgcolor=na(pma201) ? color.new(naColor, transp) : pma201 > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, text_font_family = font.family_monospace)
+    table.cell(change, 3, 4, na(pma202) ? '-' : str.tostring(pma202, '#.##') + '%', text_color = na(pma202) ? naColor : pma202 > 0 ? upColor : dnColor, bgcolor=na(pma202) ? color.new(naColor, transp) : pma202 > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, text_font_family = font.family_monospace)
+
+    pma50c = pma(ma50), pma501 = pma(htfMA501), pma502  = pma(htfMA502)
+    if not na(pma50c)
+        table.cell(change, 0, 5, 'MA50', text_color=naColor, bgcolor=color.new(naColor, 81), text_halign=text.align_left, text_size=textSize,text_font_family = font.family_monospace)
+        table.cell(change, 1, 5, na(pma50c) ? '-' : str.tostring(pma50c, '#.##') + '%', text_color = na(pma50c) ? naColor : pma50c > 0 ? upColor : dnColor, bgcolor=na(pma50c) ? color.new(naColor, transp) : pma50c > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, text_font_family = font.family_monospace)
+        table.cell(change, 2, 5, na(pma501) ? '-' : str.tostring(pma501, '#.##') + '%', text_color = na(pma501) ? naColor : pma501 > 0 ? upColor : dnColor, bgcolor=na(pma501) ? color.new(naColor, transp) : pma501 > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, text_font_family = font.family_monospace)
+        table.cell(change, 3, 5, na(pma502) ? '-' : str.tostring(pma502, '#.##') + '%', text_color = na(pma502) ? naColor : pma502 > 0 ? upColor : dnColor, bgcolor=na(pma502) ? color.new(naColor, transp) : pma502 > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, text_font_family = font.family_monospace)
+
+    pma100c = pma(ma100), pma1001 = pma(htfMA1001), pma1002  = pma(htfMA1002)
+    if not na(pma100c)
+        table.cell(change, 0, 6, 'MA100', text_color=naColor, bgcolor=color.new(naColor, 81), text_halign=text.align_left, text_size=textSize, text_font_family = font.family_monospace)
+        table.cell(change, 1, 6, na(pma100c) ? '-' : str.tostring(pma100c, '#.##') + '%', text_color = na(pma100c) ? naColor : pma100c > 0 ? upColor : dnColor, bgcolor=na(pma100c) ? color.new(naColor, transp) : pma100c > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, text_font_family = font.family_monospace)
+        table.cell(change, 2, 6, na(pma1001) ? '-' : str.tostring(pma1001, '#.##') + '%', text_color = na(pma1001) ? naColor : pma1001 > 0 ? upColor : dnColor, bgcolor=na(pma1001) ? color.new(naColor, transp) : pma1001 > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, text_font_family = font.family_monospace)
+        table.cell(change, 3, 6, na(pma1002) ? '-' : str.tostring(pma1002, '#.##') + '%', text_color = na(pma1002) ? naColor : pma1002 > 0 ? upColor : dnColor, bgcolor=na(pma1002) ? color.new(naColor, transp) : pma1002 > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, text_font_family = font.family_monospace)
+
+    pma200c = pma(ma200), pma2001 = pma(htfMA2001), pma2002  = pma(htfMA2002)
+    if not na(pma200c)
+        table.cell(change, 0, 7, 'MA200', text_color=naColor, bgcolor=color.new(naColor, 81), text_halign=text.align_left, text_size=textSize, text_font_family = font.family_monospace)
+        table.cell(change, 1, 7, na(pma200c) ? '-' : str.tostring(pma200c, '#.##') + '%', text_color=na(pma200c) ? naColor : pma200c > 0 ? upColor : dnColor, bgcolor=na(pma200c) ? color.new(naColor, transp) : pma200c > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, text_font_family = font.family_monospace)
+        table.cell(change, 2, 7, na(pma2001) ? '-' : str.tostring(pma2001, '#.##') + '%', text_color=na(pma2001) ? naColor : pma2001 > 0 ? upColor : dnColor, bgcolor=na(pma2001) ? color.new(naColor, transp) : pma2001 > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, text_font_family = font.family_monospace)
+        table.cell(change, 3, 7, na(pma2002) ? '-' : str.tostring(pma2002, '#.##') + '%', text_color=na(pma2002) ? naColor : pma2002 > 0 ? upColor : dnColor, bgcolor=na(pma2002) ? color.new(naColor, transp) : pma2002 > 0 ? color.new(upColor, transp) : color.new(dnColor, transp), text_size=textSize, text_font_family = font.family_monospace)
+
+if barstate.islast and volStat
+    table.cell(change, 1, 8, 'Chart'  , text_color=naColor, bgcolor=color.new(naColor, 81), text_size=textSize, text_font_family = font.family_monospace)
+    table.cell(change, 2, 8, timeframeText(htf1TF), text_color=naColor, bgcolor=color.new(naColor, 81), text_size=textSize, text_font_family = font.family_monospace)
+    table.cell(change, 3, 8, timeframeText(htf2TF), text_color=naColor, bgcolor=color.new(naColor, 81), text_size=textSize, text_font_family = font.family_monospace)
+
+    table.cell(change, 0, 9, 'VOLUME\nAVG(' + str.tostring(vMaLen) + ')', text_color=naColor, bgcolor=color.new(naColor, 81), text_halign=text.align_left, text_size=textSize, text_font_family = font.family_monospace)
+    table.cell(change, 1, 9, str.tostring(nzVolume, format.volume) + '\n' + (na(vSMA)     ? '-' : str.tostring(vSMA    , format.volume)), text_color = nzVolume > vSMA     ? upColor : naColor, bgcolor = nzVolume > vSMA    ? color.new(upColor, transp) : color.new(naColor, transp), text_size=textSize, text_font_family = font.family_monospace)
+    
+    table.cell(change, 2, 9, (na(htfVOL1) ? '-' : str.tostring(htfVOL1 , format.volume)) + '\n' + (na(htfVOLa1) ? '-' : str.tostring(htfVOLa1, format.volume)), text_color = htfVOL1 > htfVOLa1  ? upColor : naColor, bgcolor = htfVOL1 > htfVOLa1 ? color.new(upColor, transp) : color.new(naColor, transp), text_size=textSize, text_font_family = font.family_monospace)
+    table.cell(change, 3, 9, (na(htfVOL2) ? '-' : str.tostring(htfVOL2 , format.volume)) + '\n' + (na(htfVOLa2) ? '-' : str.tostring(htfVOLa2, format.volume)), text_color = htfVOL2 > htfVOLa2  ? upColor : naColor, bgcolor = htfVOL2 > htfVOLa2 ? color.new(upColor, transp) : color.new(naColor, transp), text_size=textSize, text_font_family = font.family_monospace)
+
+//---------------------------------------------------------------------------------------------------------------------//
+
+var table logo = table.new(position.bottom_right, 1, 1)
+if barstate.islast
+    table.cell(logo, 0, 0, '☼☾  ', text_size = size.normal, text_color = color.teal, tooltip = 'SoleMare Analytics')
